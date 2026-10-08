@@ -1,5 +1,5 @@
 # Binaries
-devlemon
+/devlemon
 *.exe
 *.exe~
 *.dll
