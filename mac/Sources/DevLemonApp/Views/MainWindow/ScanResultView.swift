@@ -132,9 +132,19 @@ public struct ScanResultView: View {
                 .disabled(state.selectedItemIDs.isEmpty)
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 14)
-        .background(Color.black.opacity(0.12))
+        .padding(.horizontal, 18)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color.white.opacity(0.04))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                )
+        )
+        .padding(.horizontal, 16)
+        .padding(.top, 10)
+        .padding(.bottom, 4)
     }
 
     private func isExpanded(_ groupID: String) -> Bool {

@@ -128,11 +128,11 @@ func (p *SystemMaintenanceProbe) Scan(ctx context.Context, cfg *config.Config) (
 		}
 	}
 
-	// 4. Xcode 辅助索引与临时缓存 (如果存在且大于 100MB)
+	// 4. Xcode 辅助索引与临时缓存 (如果存在且大于 50MB)
 	xcodeCacheDir := filepath.Join(home, "Library", "Caches", "com.apple.dt.Xcode")
 	if info, err := os.Stat(xcodeCacheDir); err == nil && info.IsDir() {
 		xcSize := FastDirSize(xcodeCacheDir)
-		if xcSize > 100*1024*1024 {
+		if xcSize > 50*1024*1024 {
 			item := &model.Item{
 				ID:            "xcode_aux_cache",
 				Title:         i18n.T("Xcode Auxiliary Caches", "Xcode 辅助索引与临时缓存"),
@@ -149,6 +149,49 @@ func (p *SystemMaintenanceProbe) Scan(ctx context.Context, cfg *config.Config) (
 			group.Items = append(group.Items, item)
 			group.TotalSizeBytes += xcSize
 			group.TotalReclaimableBytes += xcSize
+		}
+	}
+
+	// 5. 常见浏览器与主流应用缓存 (主流浏览器网络/渲染缓存，删除后自动重新生成，不影响书签与登录)
+	type browserTarget struct {
+		id    string
+		name  string
+		rel   string
+		minSz int64
+	}
+
+	browserTargets := []browserTarget{
+		{id: "chrome_cache", name: "Google Chrome 浏览器网络缓存", rel: filepath.Join("Library", "Caches", "Google", "Chrome"), minSz: 10 * 1024 * 1024},
+		{id: "safari_cache", name: "Safari 浏览器网络缓存", rel: filepath.Join("Library", "Caches", "com.apple.Safari"), minSz: 10 * 1024 * 1024},
+		{id: "edge_cache", name: "Microsoft Edge 浏览器缓存", rel: filepath.Join("Library", "Caches", "Microsoft Edge"), minSz: 10 * 1024 * 1024},
+		{id: "arc_cache", name: "Arc 浏览器网络缓存", rel: filepath.Join("Library", "Caches", "company.thebrowser.Arc"), minSz: 10 * 1024 * 1024},
+		{id: "brave_cache", name: "Brave 浏览器网络缓存", rel: filepath.Join("Library", "Caches", "BraveSoftware", "Brave-Browser"), minSz: 10 * 1024 * 1024},
+		{id: "firefox_cache", name: "Firefox 浏览器网络缓存", rel: filepath.Join("Library", "Caches", "Firefox"), minSz: 10 * 1024 * 1024},
+		{id: "wechat_cache", name: "微信应用临时图片与媒体缓存", rel: filepath.Join("Library", "Caches", "com.tencent.xinWeChat"), minSz: 20 * 1024 * 1024},
+	}
+
+	for _, bt := range browserTargets {
+		p := filepath.Join(home, bt.rel)
+		if info, err := os.Stat(p); err == nil && info.IsDir() {
+			sz := FastDirSize(p)
+			if sz >= bt.minSz {
+				item := &model.Item{
+					ID:            bt.id,
+					Title:         bt.name,
+					Description:   i18n.T("Browser/App web cache. Safe to clean without affecting accounts or bookmarks.", "应用运行产生的临时网络请求与渲染缓存，清理后不影响账号登录与书签"),
+					Path:          p,
+					SizeBytes:     sz,
+					SizeFormatted: model.FormatBytes(sz),
+					Risk:          model.RiskSafe,
+					Category:      model.CategorySystemCache,
+					IsProtected:   false,
+					CleanType:     model.CleanTypeRemovePath,
+					CleanPath:     p,
+				}
+				group.Items = append(group.Items, item)
+				group.TotalSizeBytes += sz
+				group.TotalReclaimableBytes += sz
+			}
 		}
 	}
 

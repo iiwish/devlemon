@@ -8,10 +8,10 @@ public struct MainWindowView: View {
 
     public var body: some View {
         ZStack {
-            // 背景层：沉浸式深色磨砂玻璃背景
+            // 背景层：沉浸式深色磨砂渐变
             LinearGradient(
                 colors: [
-                    Color(red: 0.10, green: 0.11, blue: 0.13),
+                    Color(red: 0.11, green: 0.12, blue: 0.14),
                     Color(red: 0.07, green: 0.08, blue: 0.09)
                 ],
                 startPoint: .topLeading,
@@ -20,16 +20,11 @@ public struct MainWindowView: View {
             .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // 顶部极简拖动栏与红黄绿避让区
-                HStack {
-                    Spacer()
-                    Text("DevLemon Lite")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.secondary.opacity(0.8))
-                    Spacer()
-                }
-                .frame(height: 32)
-                .background(Color.black.opacity(0.15))
+                // 顶部统一导航栏 (含返回按钮与红黄绿避让)
+                topNavigationBar
+
+                Divider()
+                    .opacity(0.12)
 
                 // 内容切换区
                 switch state.currentStage {
@@ -80,7 +75,73 @@ public struct MainWindowView: View {
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
-        .frame(minWidth: 680, minHeight: 460)
+        .frame(minWidth: 720, minHeight: 500)
+    }
+
+    // MARK: - 顶部导航栏
+    private var topNavigationBar: some View {
+        HStack(spacing: 12) {
+            // 左侧：为系统红黄绿交通灯留出避让空间 (macOS 默认占 ~70pt)
+            Color.clear
+                .frame(width: 68, height: 1)
+
+            // 返回按钮 (在非 idle 状态下显示)
+            if state.currentStage != .idle {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        state.resetToIdle()
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 11, weight: .bold))
+                        Text("返回首页")
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 4)
+                    .background(Color.white.opacity(0.08))
+                    .foregroundColor(.primary)
+                    .cornerRadius(6)
+                }
+                .buttonStyle(.plain)
+                .transition(.opacity.combined(with: .move(edge: .leading)))
+            }
+
+            Spacer()
+
+            // 居中标题
+            HStack(spacing: 6) {
+                Text("DevLemon Lite")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(.primary.opacity(0.9))
+
+                if state.currentStage == .results {
+                    Text("· 深度扫描结果")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            Spacer()
+
+            // 右侧偏好设置按钮
+            Button {
+                WindowManager.shared.showSettingsWindow()
+            } label: {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+                    .padding(6)
+                    .background(Color.white.opacity(0.05))
+                    .clipShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .help("打开偏好设置")
+            .padding(.trailing, 12)
+        }
+        .frame(height: 38)
+        .background(Color.black.opacity(0.18))
     }
 
     // MARK: - 就绪首页 (Idle)
@@ -109,7 +170,7 @@ public struct MainWindowView: View {
                     .foregroundColor(.secondary)
             }
 
-            // 硬件概况轻量卡片
+            // 硬件概况微卡片
             HStack(spacing: 16) {
                 MetricChip(icon: "internaldrive", label: "系统主盘", val: "\(Int(monitor.diskUsagePercent))% 已用 (剩 \(monitor.diskFreeFormatted))")
                 MetricChip(icon: "cpu", label: "CPU", val: "\(Int(monitor.cpuUsage))%")

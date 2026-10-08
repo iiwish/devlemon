@@ -25,8 +25,7 @@ public struct MenuBarPopoverView: View {
 
                 HStack(spacing: 8) {
                     Button {
-                        state.isShowingSettings = true
-                        onOpenMainWindow()
+                        WindowManager.shared.showSettingsWindow()
                     } label: {
                         Image(systemName: "gearshape")
                             .font(.system(size: 12))

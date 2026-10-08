@@ -1,91 +1,76 @@
 import SwiftUI
 
-public enum MenuBarDisplayStyle: String, CaseIterable, Identifiable {
-    case networkDual = "networkDual"          // 🍋 紧凑双行网速 (↑ 12K / ↓ 85K)
-    case networkInline = "networkInline"      // 🍋 ↑ 12K  ↓ 85K (单行)
-    case networkAndDisk = "networkAndDisk"    // 🍋 ↓ 85K · 28%
-    case cpuAndMemory = "cpuAndMemory"        // 🍋 C:12% M:65%
-    case diskOnly = "diskOnly"                // 🍋 28%
-
-    public var id: String { rawValue }
-
-    public var title: String {
-        switch self {
-        case .networkDual: return "实时上下行网速 (双行紧凑 · 推荐)"
-        case .networkInline: return "实时上下行网速 (单行平铺)"
-        case .networkAndDisk: return "实时下载网速 + 主盘容量"
-        case .cpuAndMemory: return "CPU + 内存实时负载"
-        case .diskOnly: return "仅主盘容量百分比"
-        }
-    }
-}
-
 public struct MenuBarLabelView: View {
+    @ObservedObject var settings = AppSettings.shared
     @ObservedObject var monitor = SystemMonitor.shared
-    @AppStorage("menuBarDisplayStyle") private var displayStyle: String = MenuBarDisplayStyle.networkDual.rawValue
 
     public init() {}
 
     public var body: some View {
-        HStack(spacing: 4) {
-            Text("🍋")
-                .font(.system(size: 12))
+        HStack(spacing: 5) {
+            // 1. 单色 Logo (允许关闭)
+            if settings.showLogo || isAllDisabled {
+                MonochromeLemonView()
+            }
 
-            switch MenuBarDisplayStyle(rawValue: displayStyle) ?? .networkDual {
-            case .networkDual:
-                // 紧凑双行网速 (经典柠檬样式)
+            // 2. 实时网速 (双行紧凑)
+            if settings.showNetwork {
                 VStack(alignment: .leading, spacing: -1) {
                     HStack(spacing: 2) {
                         Image(systemName: "arrow.up")
                             .font(.system(size: 7, weight: .bold))
-                            .foregroundColor(.green)
+                            .foregroundColor(.primary.opacity(0.8))
                         Text(monitor.uploadSpeedFormatted)
                             .font(.system(size: 8.5, weight: .medium, design: .monospaced))
                     }
                     HStack(spacing: 2) {
                         Image(systemName: "arrow.down")
                             .font(.system(size: 7, weight: .bold))
-                            .foregroundColor(.cyan)
+                            .foregroundColor(.primary.opacity(0.8))
                         Text(monitor.downloadSpeedFormatted)
                             .font(.system(size: 8.5, weight: .medium, design: .monospaced))
                     }
                 }
+            }
 
-            case .networkInline:
-                HStack(spacing: 3) {
-                    Image(systemName: "arrow.up")
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundColor(.green)
-                    Text(monitor.uploadSpeedShort)
-                        .font(.system(size: 10, weight: .medium, design: .monospaced))
-                    Image(systemName: "arrow.down")
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundColor(.cyan)
-                    Text(monitor.downloadSpeedShort)
-                        .font(.system(size: 10, weight: .medium, design: .monospaced))
-                }
+            // 3. 内存占用
+            if settings.showMemory {
+                Text("\(Int(monitor.memoryUsage))% MEM")
+                    .font(.system(size: 9.5, weight: .medium, design: .monospaced))
+            }
 
-            case .networkAndDisk:
-                HStack(spacing: 4) {
-                    Image(systemName: "arrow.down")
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundColor(.cyan)
-                    Text(monitor.downloadSpeedShort)
-                        .font(.system(size: 10, weight: .medium, design: .monospaced))
-                    Text("·")
-                        .foregroundColor(.secondary)
-                    Text("\(Int(monitor.diskUsagePercent))%")
-                        .font(.system(size: 10, weight: .medium, design: .monospaced))
-                }
+            // 4. 磁盘占用
+            if settings.showDisk {
+                Text("\(Int(monitor.diskUsagePercent))% SSD")
+                    .font(.system(size: 9.5, weight: .medium, design: .monospaced))
+            }
 
-            case .cpuAndMemory:
-                Text("C:\(Int(monitor.cpuUsage))% M:\(Int(monitor.memoryUsage))%")
-                    .font(.system(size: 10, weight: .medium, design: .monospaced))
-
-            case .diskOnly:
-                Text("\(Int(monitor.diskUsagePercent))%")
-                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+            // 5. CPU 占用
+            if settings.showCPU {
+                Text("\(Int(monitor.cpuUsage))% CPU")
+                    .font(.system(size: 9.5, weight: .medium, design: .monospaced))
             }
         }
+        .foregroundColor(.primary)
+    }
+
+    private var isAllDisabled: Bool {
+        !settings.showLogo && !settings.showNetwork && !settings.showMemory && !settings.showDisk && !settings.showCPU
+    }
+}
+
+public struct MonochromeLemonView: View {
+    public init() {}
+
+    public var body: some View {
+        // 单色矢量小柠檬图标，风格贴合 macOS 菜单栏
+        ZStack {
+            Image(systemName: "circle.circle")
+                .font(.system(size: 13, weight: .medium))
+            Image(systemName: "leaf.fill")
+                .font(.system(size: 8, weight: .bold))
+                .offset(x: 4, y: -4)
+        }
+        .frame(width: 14, height: 14)
     }
 }

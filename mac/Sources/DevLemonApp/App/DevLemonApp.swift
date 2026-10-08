@@ -17,16 +17,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 public final class WindowManager: ObservableObject {
     public static let shared = WindowManager()
     public var openWindowAction: (() -> Void)?
+    public var openSettingsAction: (() -> Void)?
 
     public func showMainWindow() {
         NSApplication.shared.activate(ignoringOtherApps: true)
         if let window = NSApplication.shared.windows.first(where: {
             let title = $0.title
-            return (title.contains("DevLemon") || title.isEmpty) && !($0.className.contains("StatusBarWindow"))
+            return (title.contains("DevLemon") || title.isEmpty) && !($0.className.contains("StatusBarWindow")) && !title.contains("偏好设置")
         }) {
             window.makeKeyAndOrderFront(nil)
         } else {
             openWindowAction?()
+        }
+    }
+
+    public func showSettingsWindow() {
+        NSApplication.shared.activate(ignoringOtherApps: true)
+        if let window = NSApplication.shared.windows.first(where: {
+            let title = $0.title
+            return title.contains("偏好设置") || title.contains("Settings")
+        }) {
+            window.makeKeyAndOrderFront(nil)
+        } else {
+            openSettingsAction?()
         }
     }
 }
@@ -35,10 +48,11 @@ public final class WindowManager: ObservableObject {
 struct DevLemonApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var appState = AppState.shared
+    @ObservedObject private var settings = AppSettings.shared
     @Environment(\.openWindow) private var openWindow
 
     var body: some Scene {
-        // 主窗口（放在第一个 Scene，启动时自动呈现）
+        // 主窗口（启动时呈现）
         Window("DevLemon", id: "main") {
             MainWindowView()
                 .frame(minWidth: 720, minHeight: 480)
@@ -46,10 +60,24 @@ struct DevLemonApp: App {
                     WindowManager.shared.openWindowAction = {
                         openWindow(id: "main")
                     }
+                    WindowManager.shared.openSettingsAction = {
+                        openWindow(id: "preferences")
+                    }
                 }
         }
         .windowResizability(.contentSize)
         .windowStyle(.hiddenTitleBar)
+
+        // 偏好设置窗口
+        Window("偏好设置", id: "preferences") {
+            SettingsView()
+                .onAppear {
+                    WindowManager.shared.openSettingsAction = {
+                        openWindow(id: "preferences")
+                    }
+                }
+        }
+        .windowResizability(.contentSize)
 
         // 菜单栏托盘
         MenuBarExtra {
@@ -58,10 +86,11 @@ struct DevLemonApp: App {
             }
         } label: {
             MenuBarLabelView()
+                .id(settings.menuBarUpdateId)
         }
         .menuBarExtraStyle(.window)
 
-        // 偏好设置
+        // 原生 Cmd+, 偏好设置兜底
         Settings {
             SettingsView()
         }
