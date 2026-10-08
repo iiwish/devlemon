@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -85,7 +86,15 @@ func (p *WorkspaceProbe) Scan(ctx context.Context, cfg *config.Config) (*model.G
 
 			// 如果命中目标构建目录名称
 			if targetMap[baseName] && rel != "." {
-				projectName := filepath.Base(filepath.Dir(currentPath))
+				wsName := filepath.Base(wsRoot)
+				relDir := filepath.Dir(rel)
+				var projectName string
+				if relDir == "." || relDir == "" {
+					projectName = wsName
+				} else {
+					projectName = fmt.Sprintf("%s/%s", wsName, relDir)
+				}
+
 				candidates = append(candidates, candidateDir{
 					path:        currentPath,
 					modTime:     info.ModTime(),
@@ -167,6 +176,21 @@ func (p *WorkspaceProbe) Scan(ctx context.Context, cfg *config.Config) (*model.G
 		group.TotalSizeBytes += res.size
 		group.TotalReclaimableBytes += res.size
 	}
+
+	// 智能排序规则：
+	// 1. 优先展示真正的编译器构建产物 (target, .build, DerivedData, .next, build 等)
+	// 2. node_modules 等重量级依赖包排在后面（开发者通常更倾向先清理纯编译缓存）
+	// 3. 在同一类别下，按体积 (SizeBytes) 从大到小降序排列
+	sort.Slice(group.Items, func(i, j int) bool {
+		isNodeI := strings.HasSuffix(group.Items[i].CleanPath, "node_modules")
+		isNodeJ := strings.HasSuffix(group.Items[j].CleanPath, "node_modules")
+		if isNodeI != isNodeJ {
+			// 纯构建产物靠前，node_modules 靠后
+			return !isNodeI
+		}
+		// 同类下按体积从大到小排序
+		return group.Items[i].SizeBytes > group.Items[j].SizeBytes
+	})
 
 	return group, nil
 }

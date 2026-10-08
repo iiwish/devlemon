@@ -481,6 +481,15 @@ func (m Model) viewDashboard() string {
 			b.WriteString("\n")
 		}
 
+		// 动态自适应标题宽度（保证多层目录完整展示，大屏幕看更全）
+		titleWidth := m.width - 32
+		if titleWidth < 36 {
+			titleWidth = 36
+		}
+		if titleWidth > 68 {
+			titleWidth = 68
+		}
+
 		for i := startIdx; i < endIdx; i++ {
 			fi := m.flatItems[i]
 			if fi.IsHeader {
@@ -512,7 +521,8 @@ func (m Model) viewDashboard() string {
 				riskBadge = fmt.Sprintf("\033[36m[%s]\033[0m", i18n.T("Protected", "保护"))
 			}
 
-			line := fmt.Sprintf("%s%s %-32s %10s  %s", pointer, check, truncate(fi.Item.Title, 32), fi.Item.SizeFormatted, riskBadge)
+			titleStr := truncateMiddle(fi.Item.Title, titleWidth)
+			line := fmt.Sprintf("%s%s %-*s %10s  %s", pointer, check, titleWidth, titleStr, fi.Item.SizeFormatted, riskBadge)
 			if i == m.cursor {
 				line = lipgloss.NewStyle().Bold(true).Render(line)
 			}
@@ -599,6 +609,19 @@ func truncate(s string, maxLen int) string {
 		return s
 	}
 	return string(runes[:maxLen-3]) + "..."
+}
+
+func truncateMiddle(s string, maxLen int) string {
+	runes := []rune(s)
+	if len(runes) <= maxLen {
+		return s
+	}
+	if maxLen < 10 {
+		return string(runes[:maxLen])
+	}
+	headLen := (maxLen - 3) / 2
+	tailLen := maxLen - 3 - headLen
+	return string(runes[:headLen]) + "..." + string(runes[len(runes)-tailLen:])
 }
 
 // RunTUI 启动 Bubble Tea TUI 主程序
