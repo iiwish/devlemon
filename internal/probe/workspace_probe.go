@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"devlemon/internal/config"
+	"devlemon/internal/i18n"
 	"devlemon/internal/model"
 )
 
@@ -37,7 +38,7 @@ type candidateDir struct {
 func (p *WorkspaceProbe) Scan(ctx context.Context, cfg *config.Config) (*model.Group, error) {
 	group := &model.Group{
 		ID:       "workspace_builds",
-		Title:    "📂 项目构建产物与依赖（target/、.build、node_modules）",
+		Title:    i18n.T("📂 Workspace Builds & Dependencies (target, .build, node_modules)", "📂 项目构建产物与依赖（target/、.build、node_modules）"),
 		Category: model.CategoryWorkspaceBuild,
 		Items:    make([]*model.Item, 0),
 	}
@@ -127,11 +128,11 @@ func (p *WorkspaceProbe) Scan(ctx context.Context, cfg *config.Config) (*model.G
 					daysAgo := int(now.Sub(c.modTime) / (24 * time.Hour))
 					isDormant := now.Sub(c.modTime) >= dormancyDuration
 
-					desc := fmt.Sprintf("项目 [%s] 的中间构建产物，距最后修改约 %d 天", c.projectName, daysAgo)
+					var desc string
 					if isDormant {
-						desc += "（已休眠，可安全清理）"
+						desc = fmt.Sprintf(i18n.T("Build artifacts for [%s], modified %d days ago (Dormant, safe to clean)", "项目 [%s] 的中间构建产物，距最后修改约 %d 天（已休眠，可安全清理）"), c.projectName, daysAgo)
 					} else {
-						desc += "（近期活跃，重新编译将耗时）"
+						desc = fmt.Sprintf(i18n.T("Build artifacts for [%s], modified %d days ago (Recently active, recompilation takes time)", "项目 [%s] 的中间构建产物，距最后修改约 %d 天（近期活跃，重新编译将耗时）"), c.projectName, daysAgo)
 					}
 
 					item := &model.Item{

@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"devlemon/internal/config"
+	"devlemon/internal/i18n"
 	"devlemon/internal/model"
 )
 
@@ -40,7 +41,7 @@ type dockerDFOutput struct {
 func (p *DockerProbe) Scan(ctx context.Context, cfg *config.Config) (*model.Group, error) {
 	group := &model.Group{
 		ID:       "docker_resources",
-		Title:    "🐳 Docker / OrbStack 容器资源",
+		Title:    i18n.T("🐳 Docker / OrbStack Container Resources", "🐳 Docker / OrbStack 容器资源"),
 		Category: model.CategoryDocker,
 		Items:    make([]*model.Item, 0),
 	}
@@ -77,8 +78,8 @@ func (p *DockerProbe) Scan(ctx context.Context, cfg *config.Config) (*model.Grou
 			if sizeBytes > 0 {
 				group.Items = append(group.Items, &model.Item{
 					ID:            "docker_build_cache",
-					Title:         "Docker BuildKit 构建缓存",
-					Description:   "中间编译层与 Dockerfile 构建缓存，清空后按需自动重新构建",
+					Title:         i18n.T("Docker BuildKit Build Cache", "Docker BuildKit 构建缓存"),
+					Description:   i18n.T("Intermediate build stages & Dockerfile build cache", "中间编译层与 Dockerfile 构建缓存，清空后按需自动重新构建"),
 					SizeBytes:     sizeBytes,
 					SizeFormatted: model.FormatBytes(sizeBytes),
 					Risk:          model.RiskSafe,
@@ -94,8 +95,8 @@ func (p *DockerProbe) Scan(ctx context.Context, cfg *config.Config) (*model.Grou
 			if reclaimBytes > 0 {
 				group.Items = append(group.Items, &model.Item{
 					ID:            "docker_unused_images",
-					Title:         "未使用的 Docker 镜像",
-					Description:   "未被任何运行中容器引用的旧版本镜像（已自动保护活跃容器镜像）",
+					Title:         i18n.T("Unused Docker Images", "未使用的 Docker 镜像"),
+					Description:   i18n.T("Old images not referenced by any running containers (active containers protected)", "未被任何运行中容器引用的旧版本镜像（已自动保护活跃容器镜像）"),
 					SizeBytes:     reclaimBytes,
 					SizeFormatted: model.FormatBytes(reclaimBytes),
 					Risk:          model.RiskSafe,
@@ -111,8 +112,8 @@ func (p *DockerProbe) Scan(ctx context.Context, cfg *config.Config) (*model.Grou
 			if reclaimBytes > 0 {
 				group.Items = append(group.Items, &model.Item{
 					ID:            "docker_dangling_volumes",
-					Title:         "未挂载的 Docker 孤立数据卷",
-					Description:   "容器已销毁但残留的历史匿名数据卷",
+					Title:         i18n.T("Docker Dangling Volumes", "未挂载的 Docker 孤立数据卷"),
+					Description:   i18n.T("Anonymous volumes left behind by destroyed containers", "容器已销毁但残留的历史匿名数据卷"),
 					SizeBytes:     reclaimBytes,
 					SizeFormatted: model.FormatBytes(reclaimBytes),
 					Risk:          model.RiskCaution,
@@ -128,8 +129,8 @@ func (p *DockerProbe) Scan(ctx context.Context, cfg *config.Config) (*model.Grou
 			if reclaimBytes > 0 {
 				group.Items = append(group.Items, &model.Item{
 					ID:            "docker_stopped_containers",
-					Title:         "已退出的历史测试容器",
-					Description:   "处于 Exited 状态的旧容器",
+					Title:         i18n.T("Stopped Docker Containers", "已退出的历史测试容器"),
+					Description:   i18n.T("Containers in Exited status", "处于 Exited 状态的旧容器"),
 					SizeBytes:     reclaimBytes,
 					SizeFormatted: model.FormatBytes(reclaimBytes),
 					Risk:          model.RiskSafe,

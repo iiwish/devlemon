@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"devlemon/internal/config"
+	"devlemon/internal/i18n"
 	"devlemon/internal/model"
 )
 
@@ -39,7 +40,7 @@ type simctlListOutput struct {
 func (p *SimulatorProbe) Scan(ctx context.Context, cfg *config.Config) (*model.Group, error) {
 	group := &model.Group{
 		ID:       "ios_simulators",
-		Title:    "🛠️ iOS 模拟器环境（带运行态避让保护）",
+		Title:    i18n.T("🛠️ iOS Simulator Environment (Active Shield Protected)", "🛠️ iOS 模拟器环境（带运行态避让保护）"),
 		Category: model.CategorySimulator,
 		Items:    make([]*model.Item, 0),
 	}
@@ -80,15 +81,15 @@ func (p *SimulatorProbe) Scan(ctx context.Context, cfg *config.Config) (*model.G
 			if dev.State == "Booted" {
 				group.Items = append(group.Items, &model.Item{
 					ID:            "sim_" + dev.UDID,
-					Title:         fmt.Sprintf("模拟器: %s", dev.Name),
-					Description:   "当前测试设备正在前台/后台运行中，已开启安全避让保护",
+					Title:         fmt.Sprintf(i18n.T("Simulator: %s", "模拟器: %s"), dev.Name),
+					Description:   i18n.T("Running in foreground/background, active safety shield applied", "当前测试设备正在前台/后台运行中，已开启安全避让保护"),
 					Path:          devPath,
 					SizeBytes:     size,
 					SizeFormatted: model.FormatBytes(size),
 					Risk:          model.RiskSafe,
 					Category:      model.CategorySimulator,
 					IsProtected:   true,
-					ProtectReason: "🟢 正在运行中 (Booted)，已自动加锁保护，绝不中断测试",
+					ProtectReason: i18n.T("🟢 Running (Booted), locked by safety shield to prevent interruption", "🟢 正在运行中 (Booted)，已自动加锁保护，绝不中断测试"),
 				})
 				group.TotalSizeBytes += size
 				continue
@@ -98,8 +99,8 @@ func (p *SimulatorProbe) Scan(ctx context.Context, cfg *config.Config) (*model.G
 			if size > 100*1024*1024 {
 				group.Items = append(group.Items, &model.Item{
 					ID:            "sim_" + dev.UDID,
-					Title:         fmt.Sprintf("已关机设备: %s", dev.Name),
-					Description:   "历史测试残留数据与应用沙盒缓存，重置后恢复初始洁净状态",
+					Title:         fmt.Sprintf(i18n.T("Shutdown Device: %s", "已关机设备: %s"), dev.Name),
+					Description:   i18n.T("Historical test app sandbox data and cache, safe to erase", "历史测试残留数据与应用沙盒缓存，重置后恢复初始洁净状态"),
 					Path:          devPath,
 					SizeBytes:     size,
 					SizeFormatted: model.FormatBytes(size),

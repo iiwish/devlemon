@@ -11,13 +11,11 @@ import (
 	"devlemon/internal/cleaner"
 	"devlemon/internal/config"
 	"devlemon/internal/engine"
+	"devlemon/internal/i18n"
 	"devlemon/internal/model"
 	"devlemon/internal/reporter"
 	"devlemon/internal/tui"
-)
-
-var (
-	Version = "v0.2.1"
+	"devlemon/internal/version"
 )
 
 func main() {
@@ -25,7 +23,7 @@ func main() {
 	if len(os.Args) == 1 || (len(os.Args) >= 2 && (os.Args[1] == "tui" || os.Args[1] == "-i")) {
 		cfg := config.DefaultConfig()
 		if err := tui.RunTUI(cfg); err != nil {
-			fmt.Fprintf(os.Stderr, "TUI 启动异常: %v\n", err)
+			fmt.Fprintf(os.Stderr, "%s: %v\n", i18n.T("TUI error", "TUI 启动异常"), err)
 			os.Exit(1)
 		}
 		return
@@ -42,23 +40,25 @@ func main() {
 	case "clean":
 		handleClean(os.Args[2:])
 	case "version", "-v", "--version":
-		fmt.Printf("devlemon %s (%s/%s)\n", Version, runtime.GOOS, runtime.GOARCH)
+		fmt.Printf("devlemon %s (%s/%s)\n", version.Version, runtime.GOOS, runtime.GOARCH)
 	case "help", "-h", "--help":
 		printUsage()
 	default:
-		fmt.Printf("未知指令: %s\n", subcommand)
+		fmt.Printf(i18n.T("Unknown command: %s\n", "未知指令: %s\n"), subcommand)
 		printUsage()
 		os.Exit(1)
 	}
 }
 
 func printUsage() {
-	fmt.Println(`🍋 DevLemon - 极简轻量级开发者智能磁盘清理工具
+	if i18n.IsChinese() {
+		fmt.Println(`🍋 DevLemon - 极简轻量级开发者智能磁盘清理工具
 
 使用方式:
-  devlemon <command> [options]
+  devlemon <command> [options] 或 dl <command> [options]
 
 指令列表:
+  tui     启动全屏交互式终端仪表盘 (默认)
   scan    扫描当前系统的可清理缓存与构建产物
   clean   执行清理操作
   version 查看版本信息
@@ -70,10 +70,36 @@ func printUsage() {
   --dry-run             预演模式，仅模拟清理过程，不真正执行删除操作
 
 示例:
-  devlemon scan
-  devlemon scan --workspace ~/Projects --json
-  devlemon clean --safe
-  devlemon clean --dry-run`)
+  dl                      # 启动全屏交互 TUI
+  dl scan                 # 快速扫描并输出报告
+  dl scan --json          # 输出机器可读 JSON
+  dl clean --safe         # 快速清理安全缓存
+  dl clean --dry-run      # 模拟预演`)
+	} else {
+		fmt.Println(`🍋 DevLemon - Intelligent, Context-Aware Disk Cleanup Tool for Developers
+
+Usage:
+  devlemon <command> [options] or dl <command> [options]
+
+Commands:
+  tui     Launch interactive fullscreen terminal dashboard (default)
+  scan    Scan reclaimable caches and build artifacts
+  clean   Clean detected reclaimable resources
+  version Show version information
+
+Options:
+  --workspace <path>    Add custom project workspace path (e.g. --workspace ~/Projects)
+  --json                Output result in standard JSON format
+  --safe                Only scan or clean 100% safe caches (skips rebuildable targets)
+  --dry-run             Dry-run mode, simulate cleanup without deleting data
+
+Examples:
+  dl                      # Launch interactive TUI
+  dl scan                 # Scan and display terminal summary
+  dl scan --json          # Output machine-readable JSON
+  dl clean --safe         # Clean 100% safe caches
+  dl clean --dry-run      # Simulate cleanup`)
+	}
 }
 
 func handleScan(args []string) {

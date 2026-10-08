@@ -12,7 +12,9 @@ import (
 	"devlemon/internal/cleaner"
 	"devlemon/internal/config"
 	"devlemon/internal/engine"
+	"devlemon/internal/i18n"
 	"devlemon/internal/model"
+	"devlemon/internal/version"
 )
 
 type state int
@@ -132,7 +134,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case scanDoneMsg:
 		if msg.err != nil {
-			m.statusMsg = fmt.Sprintf("扫描失败: %v", msg.err)
+			m.statusMsg = fmt.Sprintf(i18n.T("Scan failed: %v", "扫描失败: %v"), msg.err)
 			m.state = stateDashboard
 			return m, nil
 		}
@@ -407,14 +409,14 @@ func (m Model) View() string {
 func (m Model) viewScanning() string {
 	var b strings.Builder
 	b.WriteString("\n\n")
-	b.WriteString(titleStyle.Render("🍋 DevLemon") + "\n\n")
-	b.WriteString(fmt.Sprintf("  %s \033[1;36m正在全方位深度扫描系统与开发环境...\033[0m\n\n", m.spinner.View()))
-	b.WriteString("  ⚡ 并发排查 Docker BuildKit 缓存与孤立数据卷\n")
-	b.WriteString("  ⚡ 感知 iOS 模拟器运行状态（运行态避让保护已加锁）\n")
-	b.WriteString("  ⚡ 启发式聚类嗅探代码工作区 (~/self, ~/daas 等)\n")
-	b.WriteString("  ⚡ 16 线程并行统计 target/、.build、node_modules 体积\n")
-	b.WriteString("  ⚡ 分析 Go、npm、uv、Homebrew 等包管理器下载层\n\n")
-	b.WriteString(keyHelpStyle.Render("  扫描正在毫秒级多线程推进中，请稍候..."))
+	b.WriteString(titleStyle.Render("🍋 DevLemon " + version.Version) + "\n\n")
+	b.WriteString(fmt.Sprintf("  %s \033[1;36m%s\033[0m\n\n", m.spinner.View(), i18n.T("Deep scanning system and development environments...", "正在全方位深度扫描系统与开发环境...")))
+	b.WriteString("  ⚡ " + i18n.T("Inspecting Docker BuildKit cache & dangling volumes", "并发排查 Docker BuildKit 缓存与孤立数据卷") + "\n")
+	b.WriteString("  ⚡ " + i18n.T("Detecting iOS Simulators with active shield protection", "感知 iOS 模拟器运行状态（运行态避让保护已加锁）") + "\n")
+	b.WriteString("  ⚡ " + i18n.T("Heuristic clustering discovery for project workspaces", "启发式聚类嗅探代码工作区 (~/self, ~/daas 等)") + "\n")
+	b.WriteString("  ⚡ " + i18n.T("16 concurrent workers sizing build & dependency directories", "16 线程并行统计 target/、.build、node_modules 体积") + "\n")
+	b.WriteString("  ⚡ " + i18n.T("Analyzing package manager cache layers (Go, npm, uv, brew)", "分析 Go、npm、uv、Homebrew 等包管理器下载层") + "\n\n")
+	b.WriteString(keyHelpStyle.Render("  " + i18n.T("Multithreaded scanning in progress, please wait...", "扫描正在毫秒级多线程推进中，请稍候...")))
 	return b.String()
 }
 
@@ -422,11 +424,11 @@ func (m Model) viewDashboard() string {
 	var b strings.Builder
 
 	// 1. 顶部标题与磁盘容量状态
-	title := titleStyle.Render("🍋 DevLemon v0.2.0")
+	title := titleStyle.Render("🍋 DevLemon " + version.Version)
 
 	diskInfo := ""
 	if m.report != nil {
-		diskInfo = fmt.Sprintf("磁盘总容量: %s  |  已用: %s  |  可用: %s [%d%%]",
+		diskInfo = fmt.Sprintf(i18n.T("Total Disk: %s  |  Used: %s  |  Free: %s [%d%%]", "磁盘总容量: %s  |  已用: %s  |  可用: %s [%d%%]"),
 			model.FormatBytes(m.report.DiskTotal),
 			model.FormatBytes(m.report.DiskUsed),
 			model.FormatBytes(m.report.DiskFree),
@@ -434,10 +436,10 @@ func (m Model) viewDashboard() string {
 		)
 	}
 
-	selectedSummary := fmt.Sprintf("已选: %d 项 / \033[1;33m%s\033[0m", m.selectedCount(), model.FormatBytes(m.selectedBytes()))
+	selectedSummary := fmt.Sprintf(i18n.T("Selected: %d items / \033[1;33m%s\033[0m", "已选: %d 项 / \033[1;33m%s\033[0m"), m.selectedCount(), model.FormatBytes(m.selectedBytes()))
 
 	// 当前光标位置与条目总数提示
-	navInfo := fmt.Sprintf("条目位置: [%d / %d]  |  按 [Tab] 在分类间极速跳转", m.cursor+1, len(m.flatItems))
+	navInfo := fmt.Sprintf(i18n.T("Item: [%d / %d]  |  Press [Tab] to jump categories", "条目位置: [%d / %d]  |  按 [Tab] 在分类间极速跳转"), m.cursor+1, len(m.flatItems))
 
 	headerContent := fmt.Sprintf("%s\n%s\n%s  |  \033[36m%s\033[0m", title, diskInfo, selectedSummary, navInfo)
 	b.WriteString(headerBoxStyle.Render(headerContent))
@@ -445,7 +447,7 @@ func (m Model) viewDashboard() string {
 
 	// 2. 列表区域与动态高度计算
 	if len(m.flatItems) == 0 {
-		b.WriteString("\n  🎉 太棒了！未发现可清理的冗余项目，磁盘非常干净！\n\n")
+		b.WriteString("\n  " + i18n.T("🎉 Awesome! No reclaimable items found, your disk is sparkling clean!", "🎉 太棒了！未发现可清理的冗余项目，磁盘非常干净！") + "\n\n")
 	} else {
 		// 根据终端高度动态计算可视行数（保证大屏幕看到更多，小屏幕不截断）
 		maxVisible := m.height - 15
@@ -471,7 +473,7 @@ func (m Model) viewDashboard() string {
 
 		// 向上滚动提示
 		if startIdx > 0 {
-			b.WriteString(scrollCueStyle.Render(fmt.Sprintf("    ▲ ... 向上滚动查看上方 %d 项 ...", startIdx)))
+			b.WriteString(scrollCueStyle.Render(fmt.Sprintf(i18n.T("    ▲ ... Scroll up to view %d more items ...", "    ▲ ... 向上滚动查看上方 %d 项 ..."), startIdx)))
 			b.WriteString("\n")
 		}
 
@@ -495,15 +497,15 @@ func (m Model) viewDashboard() string {
 				check = "[\033[32m✓\033[0m]"
 			}
 
-			riskBadge := "\033[32m[安全]\033[0m"
+			riskBadge := fmt.Sprintf("\033[32m[%s]\033[0m", i18n.T("Safe", "安全"))
 			switch fi.Item.Risk {
 			case model.RiskRebuildable:
-				riskBadge = "\033[33m[重构]\033[0m"
+				riskBadge = fmt.Sprintf("\033[33m[%s]\033[0m", i18n.T("Rebuild", "重构"))
 			case model.RiskCaution:
-				riskBadge = "\033[31m[谨慎]\033[0m"
+				riskBadge = fmt.Sprintf("\033[31m[%s]\033[0m", i18n.T("Caution", "谨慎"))
 			}
 			if fi.Item.IsProtected {
-				riskBadge = "\033[36m[保护]\033[0m"
+				riskBadge = fmt.Sprintf("\033[36m[%s]\033[0m", i18n.T("Protected", "保护"))
 			}
 
 			line := fmt.Sprintf("%s%s %-32s %10s  %s", pointer, check, truncate(fi.Item.Title, 32), fi.Item.SizeFormatted, riskBadge)
@@ -517,7 +519,7 @@ func (m Model) viewDashboard() string {
 		// 向下滚动提示
 		if endIdx < len(m.flatItems) {
 			remaining := len(m.flatItems) - endIdx
-			b.WriteString(scrollCueStyle.Render(fmt.Sprintf("    ▼ ... 向下滚动查看更多项目 (还有 %d 项，按 Tab 直接跳转) ...", remaining)))
+			b.WriteString(scrollCueStyle.Render(fmt.Sprintf(i18n.T("    ▼ ... Scroll down for more items (%d remaining, press Tab to jump) ...", "    ▼ ... 向下滚动查看更多项目 (还有 %d 项，按 Tab 直接跳转) ..."), remaining)))
 			b.WriteString("\n")
 		}
 
@@ -527,12 +529,12 @@ func (m Model) viewDashboard() string {
 			if !curr.IsHeader && curr.Item != nil {
 				var d strings.Builder
 				d.WriteString(fmt.Sprintf("\033[1m%s\033[0m (%s)\n", curr.Item.Title, curr.Item.SizeFormatted))
-				d.WriteString(fmt.Sprintf("说明: %s\n", curr.Item.Description))
+				d.WriteString(fmt.Sprintf("%s: %s\n", i18n.T("Description", "说明"), curr.Item.Description))
 				if curr.Item.Path != "" {
-					d.WriteString(fmt.Sprintf("路径: %s\n", curr.Item.Path))
+					d.WriteString(fmt.Sprintf("%s: %s\n", i18n.T("Path", "路径"), curr.Item.Path))
 				}
 				if curr.Item.IsProtected {
-					d.WriteString(fmt.Sprintf("\033[32m保护理由: %s\033[0m\n", curr.Item.ProtectReason))
+					d.WriteString(fmt.Sprintf("\033[32m%s: %s\033[0m\n", i18n.T("Protected Reason", "保护理由"), curr.Item.ProtectReason))
 				}
 				b.WriteString(detailBoxStyle.Render(d.String()))
 				b.WriteString("\n")
@@ -542,14 +544,14 @@ func (m Model) viewDashboard() string {
 
 	// 4. 底部快捷键指南
 	helpBar := fmt.Sprintf(
-		" %s 切换选中 | %s 分类跳转 | %s 全选安全项 | %s 一键清理 | %s 预演 | %s 重扫 | %s 退出",
-		keyBadgeStyle.Render("[Space]"),
-		keyBadgeStyle.Render("[Tab]"),
-		keyBadgeStyle.Render("[A]"),
-		keyBadgeStyle.Render("[Enter]"),
-		keyBadgeStyle.Render("[D]"),
-		keyBadgeStyle.Render("[R]"),
-		keyBadgeStyle.Render("[Q]"),
+		" %s %s | %s %s | %s %s | %s %s | %s %s | %s %s | %s %s",
+		keyBadgeStyle.Render("[Space]"), i18n.T("Toggle", "切换选中"),
+		keyBadgeStyle.Render("[Tab]"), i18n.T("Jump Group", "分类跳转"),
+		keyBadgeStyle.Render("[A]"), i18n.T("All Safe", "全选安全项"),
+		keyBadgeStyle.Render("[Enter]"), i18n.T("Clean", "一键清理"),
+		keyBadgeStyle.Render("[D]"), i18n.T("Dry Run", "预演"),
+		keyBadgeStyle.Render("[R]"), i18n.T("Rescan", "重扫"),
+		keyBadgeStyle.Render("[Q]"), i18n.T("Quit", "退出"),
 	)
 	b.WriteString(keyHelpStyle.Render(helpBar))
 	b.WriteString("\n")
@@ -560,10 +562,10 @@ func (m Model) viewDashboard() string {
 func (m Model) viewCleaning() string {
 	var b strings.Builder
 	b.WriteString("\n\n")
-	b.WriteString(titleStyle.Render("🍋 DevLemon - 正在执行清理") + "\n\n")
-	b.WriteString(fmt.Sprintf("  %s \033[1;33m正在安全清理已选资源，请稍候...\033[0m\n\n", m.spinner.View()))
-	b.WriteString("  • 释放无用缓存与项目构建产物\n")
-	b.WriteString("  • 联动请求 macOS APFS 本地快照薄化释放空间\n\n")
+	b.WriteString(titleStyle.Render(i18n.T("🍋 DevLemon - Cleaning in Progress", "🍋 DevLemon - 正在执行清理")) + "\n\n")
+	b.WriteString(fmt.Sprintf("  %s \033[1;33m%s\033[0m\n\n", m.spinner.View(), i18n.T("Safely cleaning selected resources, please wait...", "正在安全清理已选资源，请稍候...")))
+	b.WriteString("  • " + i18n.T("Reclaiming unneeded caches and project build artifacts", "释放无用缓存与项目构建产物") + "\n")
+	b.WriteString("  • " + i18n.T("Triggering macOS APFS local snapshot thinning to free physical blocks", "联动请求 macOS APFS 本地快照薄化释放空间") + "\n\n")
 	return b.String()
 }
 
@@ -572,18 +574,18 @@ func (m Model) viewDone() string {
 	b.WriteString("\n\n")
 
 	if m.isDryRun {
-		b.WriteString(titleStyle.Render("🔍 DevLemon - 模拟预演完成") + "\n\n")
-		b.WriteString(fmt.Sprintf("  • 预演跳过项数: %d 项\n", m.cleanedCount))
-		b.WriteString(fmt.Sprintf("  • 预计释放空间: \033[1;32m%s\033[0m\n\n", model.FormatBytes(m.cleanedBytes)))
-		b.WriteString("  (预演模式未删除任何实际数据)\n\n")
+		b.WriteString(titleStyle.Render(i18n.T("🔍 DevLemon - Dry Run Completed", "🔍 DevLemon - 模拟预演完成")) + "\n\n")
+		b.WriteString(fmt.Sprintf("  • "+i18n.T("Items simulated: %d items", "预演跳过项数: %d 项")+"\n", m.cleanedCount))
+		b.WriteString(fmt.Sprintf("  • "+i18n.T("Estimated space to reclaim: \033[1;32m%s\033[0m", "预计释放空间: \033[1;32m%s\033[0m")+"\n\n", model.FormatBytes(m.cleanedBytes)))
+		b.WriteString("  " + i18n.T("(Dry run mode: no actual data deleted)", "(预演模式未删除任何实际数据)") + "\n\n")
 	} else {
-		b.WriteString(titleStyle.Render("🎉 DevLemon - 清理圆满完成！") + "\n\n")
-		b.WriteString(fmt.Sprintf("  • 成功处理项目: %d 项\n", m.cleanedCount))
-		b.WriteString(fmt.Sprintf("  • 本次释放空间: \033[1;32m%s\033[0m\n", model.FormatBytes(m.cleanedBytes)))
-		b.WriteString("  • APFS 本地快照释放请求已成功触发。\n\n")
+		b.WriteString(titleStyle.Render(i18n.T("🎉 DevLemon - Cleanup Complete!", "🎉 DevLemon - 清理圆满完成！")) + "\n\n")
+		b.WriteString(fmt.Sprintf("  • "+i18n.T("Successfully processed: %d items", "成功处理项目: %d 项")+"\n", m.cleanedCount))
+		b.WriteString(fmt.Sprintf("  • "+i18n.T("Space reclaimed: \033[1;32m%s\033[0m", "本次释放空间: \033[1;32m%s\033[0m")+"\n", model.FormatBytes(m.cleanedBytes)))
+		b.WriteString("  • " + i18n.T("APFS local snapshot purge request sent successfully.", "APFS 本地快照释放请求已成功触发。") + "\n\n")
 	}
 
-	b.WriteString(keyHelpStyle.Render("  [Enter] 重新扫描  |  [Q] 退出程序\n"))
+	b.WriteString(keyHelpStyle.Render("  " + i18n.T("[Enter] Rescan  |  [Q] Quit", "[Enter] 重新扫描  |  [Q] 退出程序") + "\n"))
 	return b.String()
 }
 
