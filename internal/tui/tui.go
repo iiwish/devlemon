@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -53,6 +54,9 @@ type Model struct {
 	height    int
 	statusMsg string
 
+	// 动态旋转动画 Spinner
+	spinner spinner.Model
+
 	// 清理结果统计
 	cleanedBytes int64
 	cleanedCount int
@@ -60,16 +64,26 @@ type Model struct {
 }
 
 func NewModel(cfg *config.Config) Model {
+	s := spinner.NewModel()
+	s.Spinner = spinner.Dot
+	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#FACC15")) // 经典柠檬黄
+
 	return Model{
 		cfg:       cfg,
 		state:     stateScanning,
 		cursor:    0,
 		flatItems: make([]FlatItem, 0),
+		spinner:   s,
+		height:    24, // 默认初始高度
+		width:     80,
 	}
 }
 
 func (m Model) Init() tea.Cmd {
-	return m.startScanCmd()
+	return tea.Batch(
+		spinner.Tick,
+		m.startScanCmd(),
+	)
 }
 
 func (m Model) startScanCmd() tea.Cmd {
@@ -101,11 +115,20 @@ func (m Model) startCleanCmd(isDryRun bool) tea.Cmd {
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmds []tea.Cmd
+
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
 		return m, nil
+
+	case spinner.TickMsg:
+		if m.state == stateScanning || m.state == stateCleaning {
+			var cmd tea.Cmd
+			m.spinner, cmd = m.spinner.Update(msg)
+			cmds = append(cmds, cmd)
+		}
 
 	case scanDoneMsg:
 		if msg.err != nil {
@@ -117,7 +140,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.flatItems = buildFlatItems(m.report)
 		m.state = stateDashboard
 		m.cursor = 0
-		// 默认将光标跳到第一个可选的 item
 		m.skipHeadersDown()
 		return m, nil
 
@@ -143,6 +165,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.moveCursorDown()
 			}
 
+		// Tab 键：支持在各大分类组之间秒级快速跳转！
+		case "tab":
+			if m.state == stateDashboard {
+				m.jumpToNextGroup()
+			}
+
+		case "shift+tab":
+			if m.state == stateDashboard {
+				m.jumpToPrevGroup()
+			}
+
 		case " ":
 			if m.state == stateDashboard && len(m.flatItems) > 0 {
 				fi := &m.flatItems[m.cursor]
@@ -152,39 +185,36 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "a", "A":
-			// 全选/全不选绿色安全项
 			if m.state == stateDashboard {
 				m.toggleSelectAllSafe()
 			}
 
 		case "enter":
 			if m.state == stateDashboard {
-				// 检查是否有勾选项
 				if m.selectedCount() > 0 {
 					m.state = stateCleaning
-					return m, m.startCleanCmd(false)
+					cmds = append(cmds, spinner.Tick, m.startCleanCmd(false))
 				}
 			} else if m.state == stateDone {
-				// 重新扫描
 				m.state = stateScanning
-				return m, m.startScanCmd()
+				cmds = append(cmds, spinner.Tick, m.startScanCmd())
 			}
 
 		case "d", "D":
 			if m.state == stateDashboard && m.selectedCount() > 0 {
 				m.state = stateCleaning
-				return m, m.startCleanCmd(true)
+				cmds = append(cmds, spinner.Tick, m.startCleanCmd(true))
 			}
 
 		case "r", "R":
 			if m.state == stateDashboard || m.state == stateDone {
 				m.state = stateScanning
-				return m, m.startScanCmd()
+				cmds = append(cmds, spinner.Tick, m.startScanCmd())
 			}
 		}
 	}
 
-	return m, nil
+	return m, tea.Batch(cmds...)
 }
 
 func (m *Model) moveCursorUp() {
@@ -208,6 +238,44 @@ func (m *Model) moveCursorDown() {
 func (m *Model) skipHeadersDown() {
 	for m.cursor < len(m.flatItems) && m.flatItems[m.cursor].IsHeader {
 		m.cursor++
+	}
+}
+
+func (m *Model) jumpToNextGroup() {
+	foundNext := false
+	for i := m.cursor + 1; i < len(m.flatItems); i++ {
+		if m.flatItems[i].IsHeader {
+			// 跳到该 header 后的第一个有效条目
+			target := i + 1
+			for target < len(m.flatItems) && m.flatItems[target].IsHeader {
+				target++
+			}
+			if target < len(m.flatItems) {
+				m.cursor = target
+				foundNext = true
+				break
+			}
+		}
+	}
+	if !foundNext {
+		// 循环回顶部
+		m.cursor = 0
+		m.skipHeadersDown()
+	}
+}
+
+func (m *Model) jumpToPrevGroup() {
+	for i := m.cursor - 2; i >= 0; i-- {
+		if m.flatItems[i].IsHeader {
+			target := i + 1
+			for target < len(m.flatItems) && m.flatItems[target].IsHeader {
+				target++
+			}
+			if target < len(m.flatItems) {
+				m.cursor = target
+				return
+			}
+		}
 	}
 }
 
@@ -242,7 +310,6 @@ func (m *Model) toggleSelectAllSafe() {
 		}
 	}
 
-	// 如果全部都勾了，就全取消；否则全选上
 	for i := range m.flatItems {
 		fi := &m.flatItems[i]
 		if !fi.IsHeader && fi.Item != nil && fi.Item.Risk == model.RiskSafe && !fi.Item.IsProtected {
@@ -263,7 +330,6 @@ func buildFlatItems(r *model.ScanReport) []FlatItem {
 			Group:    g,
 		})
 		for _, item := range g.Items {
-			// 绿色安全项默认勾选，可重构与谨慎项默认不勾选，保护项不可勾选
 			defaultChecked := item.Risk == model.RiskSafe && !item.IsProtected
 			list = append(list, FlatItem{
 				IsHeader:  false,
@@ -317,6 +383,10 @@ var (
 	keyBadgeStyle = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(highlightColor)
+
+	scrollCueStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FACC15")).
+			Italic(true)
 )
 
 func (m Model) View() string {
@@ -338,12 +408,13 @@ func (m Model) viewScanning() string {
 	var b strings.Builder
 	b.WriteString("\n\n")
 	b.WriteString(titleStyle.Render("🍋 DevLemon") + "\n\n")
-	b.WriteString("  🔍 正在全方位扫描开发环境与磁盘空间...\n")
-	b.WriteString("  • 检测 Docker BuildKit 与孤立数据卷\n")
-	b.WriteString("  • 识别 iOS 模拟器运行态与历史设备\n")
-	b.WriteString("  • 聚类嗅探代码工作区构建产物 (target/, .build, node_modules)\n")
-	b.WriteString("  • 分析 Go、npm、uv、Homebrew 与系统包缓存\n\n")
-	b.WriteString(keyHelpStyle.Render("  请稍候片刻..."))
+	b.WriteString(fmt.Sprintf("  %s \033[1;36m正在全方位深度扫描系统与开发环境...\033[0m\n\n", m.spinner.View()))
+	b.WriteString("  ⚡ 并发排查 Docker BuildKit 缓存与孤立数据卷\n")
+	b.WriteString("  ⚡ 感知 iOS 模拟器运行状态（运行态避让保护已加锁）\n")
+	b.WriteString("  ⚡ 启发式聚类嗅探代码工作区 (~/self, ~/daas 等)\n")
+	b.WriteString("  ⚡ 16 线程并行统计 target/、.build、node_modules 体积\n")
+	b.WriteString("  ⚡ 分析 Go、npm、uv、Homebrew 等包管理器下载层\n\n")
+	b.WriteString(keyHelpStyle.Render("  扫描正在毫秒级多线程推进中，请稍候..."))
 	return b.String()
 }
 
@@ -351,7 +422,7 @@ func (m Model) viewDashboard() string {
 	var b strings.Builder
 
 	// 1. 顶部标题与磁盘容量状态
-	title := titleStyle.Render("🍋 DevLemon v0.1.0")
+	title := titleStyle.Render("🍋 DevLemon v0.2.0")
 
 	diskInfo := ""
 	if m.report != nil {
@@ -365,16 +436,26 @@ func (m Model) viewDashboard() string {
 
 	selectedSummary := fmt.Sprintf("已选: %d 项 / \033[1;33m%s\033[0m", m.selectedCount(), model.FormatBytes(m.selectedBytes()))
 
-	headerContent := fmt.Sprintf("%s\n%s  |  %s", title, diskInfo, selectedSummary)
+	// 当前光标位置与条目总数提示
+	navInfo := fmt.Sprintf("条目位置: [%d / %d]  |  按 [Tab] 在分类间极速跳转", m.cursor+1, len(m.flatItems))
+
+	headerContent := fmt.Sprintf("%s\n%s\n%s  |  \033[36m%s\033[0m", title, diskInfo, selectedSummary, navInfo)
 	b.WriteString(headerBoxStyle.Render(headerContent))
 	b.WriteString("\n")
 
-	// 2. 列表区域与详情区域分栏
+	// 2. 列表区域与动态高度计算
 	if len(m.flatItems) == 0 {
 		b.WriteString("\n  🎉 太棒了！未发现可清理的冗余项目，磁盘非常干净！\n\n")
 	} else {
-		// 渲染可视项列表（窗口滚动处理）
-		maxVisible := 14
+		// 根据终端高度动态计算可视行数（保证大屏幕看到更多，小屏幕不截断）
+		maxVisible := m.height - 15
+		if maxVisible < 10 {
+			maxVisible = 10
+		}
+		if maxVisible > 25 {
+			maxVisible = 25
+		}
+
 		startIdx := 0
 		if m.cursor > maxVisible/2 {
 			startIdx = m.cursor - maxVisible/2
@@ -388,6 +469,12 @@ func (m Model) viewDashboard() string {
 			}
 		}
 
+		// 向上滚动提示
+		if startIdx > 0 {
+			b.WriteString(scrollCueStyle.Render(fmt.Sprintf("    ▲ ... 向上滚动查看上方 %d 项 ...", startIdx)))
+			b.WriteString("\n")
+		}
+
 		for i := startIdx; i < endIdx; i++ {
 			fi := m.flatItems[i]
 			if fi.IsHeader {
@@ -396,13 +483,11 @@ func (m Model) viewDashboard() string {
 				continue
 			}
 
-			// 指针
 			pointer := "  "
 			if i == m.cursor {
 				pointer = cursorStyle.Render("❯ ")
 			}
 
-			// 复选框
 			check := "[ ]"
 			if fi.Item.IsProtected {
 				check = "🔒 "
@@ -410,7 +495,6 @@ func (m Model) viewDashboard() string {
 				check = "[\033[32m✓\033[0m]"
 			}
 
-			// 风险徽章
 			riskBadge := "\033[32m[安全]\033[0m"
 			switch fi.Item.Risk {
 			case model.RiskRebuildable:
@@ -430,28 +514,37 @@ func (m Model) viewDashboard() string {
 			b.WriteString("\n")
 		}
 
-		// 3. 当前选中项的详细说明面板 (Details Box)
-		curr := m.flatItems[m.cursor]
-		if !curr.IsHeader && curr.Item != nil {
-			var d strings.Builder
-			d.WriteString(fmt.Sprintf("\033[1m%s\033[0m (%s)\n", curr.Item.Title, curr.Item.SizeFormatted))
-			d.WriteString(fmt.Sprintf("说明: %s\n", curr.Item.Description))
-			if curr.Item.Path != "" {
-				d.WriteString(fmt.Sprintf("路径: %s\n", curr.Item.Path))
-			}
-			if curr.Item.IsProtected {
-				d.WriteString(fmt.Sprintf("\033[32m保护理由: %s\033[0m\n", curr.Item.ProtectReason))
-			}
+		// 向下滚动提示
+		if endIdx < len(m.flatItems) {
+			remaining := len(m.flatItems) - endIdx
+			b.WriteString(scrollCueStyle.Render(fmt.Sprintf("    ▼ ... 向下滚动查看更多项目 (还有 %d 项，按 Tab 直接跳转) ...", remaining)))
 			b.WriteString("\n")
-			b.WriteString(detailBoxStyle.Render(d.String()))
-			b.WriteString("\n")
+		}
+
+		// 3. 当前选中项的详细说明面板
+		if m.cursor < len(m.flatItems) {
+			curr := m.flatItems[m.cursor]
+			if !curr.IsHeader && curr.Item != nil {
+				var d strings.Builder
+				d.WriteString(fmt.Sprintf("\033[1m%s\033[0m (%s)\n", curr.Item.Title, curr.Item.SizeFormatted))
+				d.WriteString(fmt.Sprintf("说明: %s\n", curr.Item.Description))
+				if curr.Item.Path != "" {
+					d.WriteString(fmt.Sprintf("路径: %s\n", curr.Item.Path))
+				}
+				if curr.Item.IsProtected {
+					d.WriteString(fmt.Sprintf("\033[32m保护理由: %s\033[0m\n", curr.Item.ProtectReason))
+				}
+				b.WriteString(detailBoxStyle.Render(d.String()))
+				b.WriteString("\n")
+			}
 		}
 	}
 
 	// 4. 底部快捷键指南
 	helpBar := fmt.Sprintf(
-		" %s 切换选中 | %s 全选安全项 | %s 一键清理 | %s 预演 | %s 重新扫描 | %s 退出",
+		" %s 切换选中 | %s 分类跳转 | %s 全选安全项 | %s 一键清理 | %s 预演 | %s 重扫 | %s 退出",
 		keyBadgeStyle.Render("[Space]"),
+		keyBadgeStyle.Render("[Tab]"),
 		keyBadgeStyle.Render("[A]"),
 		keyBadgeStyle.Render("[Enter]"),
 		keyBadgeStyle.Render("[D]"),
@@ -468,7 +561,7 @@ func (m Model) viewCleaning() string {
 	var b strings.Builder
 	b.WriteString("\n\n")
 	b.WriteString(titleStyle.Render("🍋 DevLemon - 正在执行清理") + "\n\n")
-	b.WriteString("  🚀 正在清理已选资源，请稍候...\n")
+	b.WriteString(fmt.Sprintf("  %s \033[1;33m正在安全清理已选资源，请稍候...\033[0m\n\n", m.spinner.View()))
 	b.WriteString("  • 释放无用缓存与项目构建产物\n")
 	b.WriteString("  • 联动请求 macOS APFS 本地快照薄化释放空间\n\n")
 	return b.String()
