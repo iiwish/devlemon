@@ -108,7 +108,7 @@ public struct MainWindowView: View {
             Spacer()
 
             // 居中单行标题
-            Text("DevLemon Lite")
+            Text("DevLemon")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundColor(.secondary.opacity(0.85))
 

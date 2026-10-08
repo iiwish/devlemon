@@ -14,9 +14,8 @@ public struct MenuBarPopoverView: View {
             // Header
             HStack(alignment: .center) {
                 HStack(spacing: 6) {
-                    Text("🍋")
-                        .font(.system(size: 16))
-                    Text("DevLemon Lite")
+                    HeroLemonIcon(size: 18)
+                    Text("DevLemon")
                         .font(.system(size: 13, weight: .bold))
                         .foregroundColor(.primary)
                 }

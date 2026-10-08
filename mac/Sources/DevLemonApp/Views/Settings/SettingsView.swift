@@ -170,9 +170,9 @@ public struct SettingsView: View {
                     .fill(Color.white.opacity(0.04))
             )
 
-            // 3. 关于 DevLemon Lite
+            // 3. 关于 DevLemon
             HStack {
-                Text("DevLemon Lite v0.2.4")
+                Text("DevLemon v0.2.4")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(.secondary)
                 Spacer()

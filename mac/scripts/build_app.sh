@@ -43,7 +43,7 @@ cat << 'EOF' > "${APP_BUNDLE}/Contents/Info.plist"
     <key>CFBundleName</key>
     <string>DevLemon</string>
     <key>CFBundleDisplayName</key>
-    <string>DevLemon Lite</string>
+    <string>DevLemon</string>
     <key>CFBundleIdentifier</key>
     <string>com.iiwish.devlemon</string>
     <key>CFBundleVersion</key>
