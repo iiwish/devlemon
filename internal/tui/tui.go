@@ -154,7 +154,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "ctrl+c", "q":
+		// 退出：支持 Esc (免输入法拦截)、Ctrl+C、Ctrl+Q、以及常见输入法首字 "去"/"七"/"期"
+		case "esc", "ctrl+c", "ctrl+q", "q", "Q", "去", "七", "期", "请":
 			return m, tea.Quit
 
 		case "up", "k":
@@ -186,7 +187,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 
-		case "a", "A":
+		// 全选安全项：支持 Ctrl+A (免输入法拦截)、a、A、以及输入法首字 "啊"/"按"
+		case "ctrl+a", "a", "A", "啊", "按":
 			if m.state == stateDashboard {
 				m.toggleSelectAllSafe()
 			}
@@ -202,13 +204,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				cmds = append(cmds, spinner.Tick, m.startScanCmd())
 			}
 
-		case "d", "D":
+		// 模拟预演：支持 Ctrl+D (免输入法拦截)、d、D、以及输入法首字 "的"/"得"/"地"
+		case "ctrl+d", "d", "D", "的", "得", "地":
 			if m.state == stateDashboard && m.selectedCount() > 0 {
 				m.state = stateCleaning
 				cmds = append(cmds, spinner.Tick, m.startCleanCmd(true))
 			}
 
-		case "r", "R":
+		// 重新扫描：支持 Ctrl+R (免输入法拦截)、r、R、以及输入法首字 "人"/"日"
+		case "ctrl+r", "r", "R", "人", "日":
 			if m.state == stateDashboard || m.state == stateDone {
 				m.state = stateScanning
 				cmds = append(cmds, spinner.Tick, m.startScanCmd())
@@ -545,13 +549,13 @@ func (m Model) viewDashboard() string {
 	// 4. 底部快捷键指南
 	helpBar := fmt.Sprintf(
 		" %s %s | %s %s | %s %s | %s %s | %s %s | %s %s | %s %s",
-		keyBadgeStyle.Render("[Space]"), i18n.T("Toggle", "切换选中"),
-		keyBadgeStyle.Render("[Tab]"), i18n.T("Jump Group", "分类跳转"),
-		keyBadgeStyle.Render("[A]"), i18n.T("All Safe", "全选安全项"),
-		keyBadgeStyle.Render("[Enter]"), i18n.T("Clean", "一键清理"),
-		keyBadgeStyle.Render("[D]"), i18n.T("Dry Run", "预演"),
-		keyBadgeStyle.Render("[R]"), i18n.T("Rescan", "重扫"),
-		keyBadgeStyle.Render("[Q]"), i18n.T("Quit", "退出"),
+		keyBadgeStyle.Render("[Space]"), i18n.T("Toggle", "切换"),
+		keyBadgeStyle.Render("[Tab]"), i18n.T("Jump", "跳组"),
+		keyBadgeStyle.Render("[Ctrl+A]"), i18n.T("All Safe", "全选"),
+		keyBadgeStyle.Render("[Enter]"), i18n.T("Clean", "清理"),
+		keyBadgeStyle.Render("[Ctrl+D]"), i18n.T("Dry Run", "预演"),
+		keyBadgeStyle.Render("[Ctrl+R]"), i18n.T("Rescan", "重扫"),
+		keyBadgeStyle.Render("[Esc/Q]"), i18n.T("Quit", "退出"),
 	)
 	b.WriteString(keyHelpStyle.Render(helpBar))
 	b.WriteString("\n")
@@ -585,7 +589,7 @@ func (m Model) viewDone() string {
 		b.WriteString("  • " + i18n.T("APFS local snapshot purge request sent successfully.", "APFS 本地快照释放请求已成功触发。") + "\n\n")
 	}
 
-	b.WriteString(keyHelpStyle.Render("  " + i18n.T("[Enter] Rescan  |  [Q] Quit", "[Enter] 重新扫描  |  [Q] 退出程序") + "\n"))
+	b.WriteString(keyHelpStyle.Render("  " + i18n.T("[Enter] Rescan  |  [Esc / Q] Quit", "[Enter] 重新扫描  |  [Esc / Q] 退出程序") + "\n"))
 	return b.String()
 }
 
