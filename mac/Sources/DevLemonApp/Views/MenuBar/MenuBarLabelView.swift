@@ -63,14 +63,6 @@ public struct MonochromeLemonView: View {
     public init() {}
 
     public var body: some View {
-        // 单色矢量小柠檬图标，风格贴合 macOS 菜单栏
-        ZStack {
-            Image(systemName: "circle.circle")
-                .font(.system(size: 13, weight: .medium))
-            Image(systemName: "leaf.fill")
-                .font(.system(size: 8, weight: .bold))
-                .offset(x: 4, y: -4)
-        }
-        .frame(width: 14, height: 14)
+        MonochromeLemonIcon(size: 14)
     }
 }

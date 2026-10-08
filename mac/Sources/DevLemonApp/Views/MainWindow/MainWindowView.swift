@@ -8,7 +8,7 @@ public struct MainWindowView: View {
 
     public var body: some View {
         ZStack {
-            // 背景层：沉浸式深色磨砂渐变
+            // 背景层：沉浸式深色微渐变背景
             LinearGradient(
                 colors: [
                     Color(red: 0.11, green: 0.12, blue: 0.14),
@@ -20,11 +20,8 @@ public struct MainWindowView: View {
             .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // 顶部统一导航栏 (含返回按钮与红黄绿避让)
-                topNavigationBar
-
-                Divider()
-                    .opacity(0.12)
+                // 顶部极简单行导航栏 (紧凑压缩到一行，高度 28pt，无厚重黑底与分割线)
+                topCompactBar
 
                 // 内容切换区
                 switch state.currentStage {
@@ -60,7 +57,7 @@ public struct MainWindowView: View {
                         }
                         .buttonStyle(.plain)
                     }
-                    .padding(12)
+                    .padding(10)
                     .background(
                         RoundedRectangle(cornerRadius: 8)
                             .fill(Color.red.opacity(0.18))
@@ -69,40 +66,40 @@ public struct MainWindowView: View {
                                     .stroke(Color.red.opacity(0.3), lineWidth: 1)
                             )
                     )
-                    .padding(16)
+                    .padding(14)
                     Spacer()
                 }
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
-        .frame(minWidth: 720, minHeight: 500)
+        .frame(minWidth: 700, minHeight: 480)
     }
 
-    // MARK: - 顶部导航栏
-    private var topNavigationBar: some View {
-        HStack(spacing: 12) {
-            // 左侧：为系统红黄绿交通灯留出避让空间 (macOS 默认占 ~70pt)
+    // MARK: - 极简单行顶部导航栏 (压缩到一行)
+    private var topCompactBar: some View {
+        HStack(spacing: 10) {
+            // 左侧：为系统红黄绿交通灯留出避让间距 (~68pt)
             Color.clear
                 .frame(width: 68, height: 1)
 
-            // 返回按钮 (在非 idle 状态下显示)
+            // 返回按钮 (扫描/结果/完成页显示，紧贴红黄绿右侧，不占多余高度)
             if state.currentStage != .idle {
                 Button {
                     withAnimation(.easeInOut(duration: 0.25)) {
                         state.resetToIdle()
                     }
                 } label: {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 3) {
                         Image(systemName: "chevron.left")
-                            .font(.system(size: 11, weight: .bold))
-                        Text("返回首页")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.system(size: 10, weight: .bold))
+                        Text("返回")
+                            .font(.system(size: 11, weight: .medium))
                     }
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 4)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
                     .background(Color.white.opacity(0.08))
                     .foregroundColor(.primary)
-                    .cornerRadius(6)
+                    .cornerRadius(5)
                 }
                 .buttonStyle(.plain)
                 .transition(.opacity.combined(with: .move(edge: .leading)))
@@ -110,57 +107,39 @@ public struct MainWindowView: View {
 
             Spacer()
 
-            // 居中标题
-            HStack(spacing: 6) {
-                Text("DevLemon Lite")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(.primary.opacity(0.9))
-
-                if state.currentStage == .results {
-                    Text("· 深度扫描结果")
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
-                }
-            }
+            // 居中单行标题
+            Text("DevLemon Lite")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(.secondary.opacity(0.85))
 
             Spacer()
 
-            // 右侧偏好设置按钮
+            // 右侧设置小图标
             Button {
                 WindowManager.shared.showSettingsWindow()
             } label: {
                 Image(systemName: "gearshape")
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)
-                    .padding(6)
-                    .background(Color.white.opacity(0.05))
-                    .clipShape(Circle())
+                    .padding(5)
             }
             .buttonStyle(.plain)
             .help("打开偏好设置")
-            .padding(.trailing, 12)
+            .padding(.trailing, 10)
         }
-        .frame(height: 38)
-        .background(Color.black.opacity(0.18))
+        .frame(height: 28)
+        .padding(.top, 4)
     }
 
     // MARK: - 就绪首页 (Idle)
     private var idleView: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 22) {
             Spacer()
 
-            // 柠檬大标与微光
-            ZStack {
-                Circle()
-                    .fill(Color.yellow.opacity(0.08))
-                    .frame(width: 130, height: 130)
+            // 全新高保真立体渐变柠檬 Hero 图标 (替换原简陋 Emoji)
+            HeroLemonIcon(size: 105)
 
-                Text("🍋")
-                    .font(.system(size: 64))
-                    .shadow(color: Color.yellow.opacity(0.4), radius: 12)
-            }
-
-            VStack(spacing: 8) {
+            VStack(spacing: 6) {
                 Text("DevLemon")
                     .font(.system(size: 26, weight: .bold, design: .rounded))
                     .foregroundColor(.primary)
@@ -171,7 +150,7 @@ public struct MainWindowView: View {
             }
 
             // 硬件概况微卡片
-            HStack(spacing: 16) {
+            HStack(spacing: 14) {
                 MetricChip(icon: "internaldrive", label: "系统主盘", val: "\(Int(monitor.diskUsagePercent))% 已用 (剩 \(monitor.diskFreeFormatted))")
                 MetricChip(icon: "cpu", label: "CPU", val: "\(Int(monitor.cpuUsage))%")
                 MetricChip(icon: "memorychip", label: "内存", val: "\(Int(monitor.memoryUsage))% (\(monitor.memoryUsedFormatted))")
@@ -188,8 +167,8 @@ public struct MainWindowView: View {
                     Text("开始深度扫描")
                         .font(.system(size: 14, weight: .bold))
                 }
-                .frame(width: 200)
-                .padding(.vertical, 11)
+                .frame(width: 190)
+                .padding(.vertical, 10)
                 .background(
                     LinearGradient(
                         colors: [Color(red: 0.98, green: 0.88, blue: 0.25), Color(red: 0.90, green: 0.72, blue: 0.10)],
@@ -202,7 +181,7 @@ public struct MainWindowView: View {
                 .shadow(color: Color.yellow.opacity(0.35), radius: 8, y: 3)
             }
             .buttonStyle(.plain)
-            .padding(.top, 12)
+            .padding(.top, 10)
 
             Spacer()
         }
@@ -246,7 +225,7 @@ fileprivate struct MetricChip: View {
                 .foregroundColor(.primary)
         }
         .padding(.horizontal, 10)
-        .padding(.vertical, 6)
+        .padding(.vertical, 5)
         .background(
             RoundedRectangle(cornerRadius: 6)
                 .fill(Color.white.opacity(0.04))

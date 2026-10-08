@@ -115,7 +115,7 @@ public struct SettingsView: View {
                 HStack(spacing: 10) {
                     SettingItemCard(
                         title: "Logo",
-                        preview: AnyView(MonochromeLemonView()),
+                        preview: AnyView(MonochromeLemonIcon(size: 22)),
                         isSelected: settings.showLogo,
                         onToggle: { settings.showLogo.toggle() }
                     )
