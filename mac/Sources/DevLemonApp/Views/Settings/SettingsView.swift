@@ -43,38 +43,22 @@ public struct SettingsView: View {
 
                 // 模拟 macOS 菜单栏预览条 (类似截图 1)
                 HStack(spacing: 6) {
-                    // 用户勾选项目的实时模拟渲染
+                    // 用户勾选项目的实时模拟渲染 (双行极致紧凑)
                     HStack(spacing: 5) {
                         if settings.showLogo || isAllDisabled {
-                            MonochromeLemonView()
+                            MonochromeLemonIcon(size: 13)
                         }
                         if settings.showNetwork {
-                            VStack(alignment: .leading, spacing: -1) {
-                                HStack(spacing: 2) {
-                                    Image(systemName: "arrow.up")
-                                        .font(.system(size: 6, weight: .bold))
-                                    Text("2.5 K/s")
-                                        .font(.system(size: 7.5, design: .monospaced))
-                                }
-                                HStack(spacing: 2) {
-                                    Image(systemName: "arrow.down")
-                                        .font(.system(size: 6, weight: .bold))
-                                    Text("2.5 K/s")
-                                        .font(.system(size: 7.5, design: .monospaced))
-                                }
-                            }
+                            CompactNetBlock(upSpeed: "2.5K", downSpeed: "2.5K")
                         }
                         if settings.showMemory {
-                            Text("45% MEM")
-                                .font(.system(size: 8.5, design: .monospaced))
+                            CompactMetricBlock(val: "45%", label: "MEM")
                         }
                         if settings.showDisk {
-                            Text("28% SSD")
-                                .font(.system(size: 8.5, design: .monospaced))
+                            CompactMetricBlock(val: "28%", label: "SSD")
                         }
                         if settings.showCPU {
-                            Text("29% CPU")
-                                .font(.system(size: 8.5, design: .monospaced))
+                            CompactMetricBlock(val: "29%", label: "CPU")
                         }
                     }
                     .padding(.horizontal, 6)
