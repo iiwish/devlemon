@@ -6,6 +6,7 @@ public struct SettingsView: View {
     @ObservedObject var monitor = SystemMonitor.shared
     @ObservedObject var cliInstaller = CLIInstaller.shared
     @ObservedObject var updateManager = UpdateManager.shared
+    @ObservedObject var securityBookmark = SecurityBookmarkManager.shared
 
     @State private var cliReinstallNotice: String?
 
@@ -20,13 +21,18 @@ public struct SettingsView: View {
                 // 2. 开机自启
                 launchSection
 
-                // 3. 终端命令行工具 (CLI)
+                // 3. 沙盒目录授权 (Mac App Store 沙盒规范)
+                if securityBookmark.isSandboxed {
+                    permissionSection
+                }
+
+                // 4. 终端命令行工具 (CLI)
                 cliSection
 
-                // 4. 软件自动更新 (Sparkle 2.0)
+                // 5. 软件自动更新 (Sparkle 2.0 / MAS)
                 updateSection
 
-                // 5. 关于与版本信息
+                // 6. 关于与版本信息
                 footerSection
             }
             .padding(20)
@@ -204,7 +210,89 @@ public struct SettingsView: View {
         )
     }
 
-    // MARK: - 3. 命令行终端工具 (CLI)
+    // MARK: - 3. 沙盒目录授权 (Mac App Store 规范)
+    private var permissionSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("系统目录访问授权")
+                    .font(.system(size: 13.5, weight: .semibold))
+                    .foregroundColor(.primary)
+
+                Spacer()
+
+                HStack(spacing: 5) {
+                    Circle()
+                        .fill(securityBookmark.hasAuthorization ? Color.green : Color.orange)
+                        .frame(width: 7, height: 7)
+                    Text(securityBookmark.hasAuthorization ? "已获得个人主目录授权" : "未授权")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(securityBookmark.hasAuthorization ? .green : .orange)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(Color.white.opacity(0.06))
+                .cornerRadius(12)
+            }
+
+            Text("Mac App Store 沙盒版本遵循苹果隐私合规规范。DevLemon 需要获得个人主目录授权，以扫描并释放开发缓存（如 Xcode DerivedData、node_modules、Docker 等）。")
+                .font(.system(size: 11.5))
+                .foregroundColor(.secondary)
+
+            HStack {
+                Text(securityBookmark.hasAuthorization ? securityBookmark.authorizedPath : "未授予主目录访问权限")
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+
+                Spacer()
+
+                if securityBookmark.hasAuthorization {
+                    Button("重置授权") {
+                        securityBookmark.clearAuthorization()
+                    }
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.white.opacity(0.08))
+                    .cornerRadius(5)
+                }
+
+                Button {
+                    securityBookmark.requestAuthorization { granted in
+                        if granted {
+                            cliInstaller.autoInstallIfNeeded()
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "folder.badge.gearshape")
+                            .font(.system(size: 11))
+                        Text(securityBookmark.hasAuthorization ? "更改授权" : "立即授权个人主目录")
+                            .font(.system(size: 11, weight: .medium))
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(Color.blue.opacity(0.8))
+                    .foregroundColor(.white)
+                    .cornerRadius(6)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(10)
+            .background(Color.black.opacity(0.25))
+            .cornerRadius(6)
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color.white.opacity(0.04))
+        )
+    }
+
+    // MARK: - 4. 命令行终端工具 (CLI)
     private var cliSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -290,57 +378,69 @@ public struct SettingsView: View {
 
                 Spacer()
 
-                Button {
-                    updateManager.checkForUpdates()
-                } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 11, weight: .bold))
-                        Text("立即检查更新")
-                            .font(.system(size: 12, weight: .medium))
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 5)
-                    .background(
-                        LinearGradient(
-                            colors: [Color(red: 0.98, green: 0.88, blue: 0.25), Color(red: 0.90, green: 0.72, blue: 0.10)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
+                if updateManager.isAppStoreBuild {
+                    Text("由 Mac App Store 自动管理")
+                        .font(.system(size: 11.5, weight: .medium))
+                        .foregroundColor(.secondary)
+                } else {
+                    Button {
+                        updateManager.checkForUpdates()
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: "arrow.clockwise")
+                                .font(.system(size: 11, weight: .bold))
+                            Text("立即检查更新")
+                                .font(.system(size: 12, weight: .medium))
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 5)
+                        .background(
+                            LinearGradient(
+                                colors: [Color(red: 0.98, green: 0.88, blue: 0.25), Color(red: 0.90, green: 0.72, blue: 0.10)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
                         )
-                    )
-                    .foregroundColor(.black)
-                    .cornerRadius(6)
-                    .shadow(color: Color.yellow.opacity(0.25), radius: 3, y: 1)
+                        .foregroundColor(.black)
+                        .cornerRadius(6)
+                        .shadow(color: Color.yellow.opacity(0.25), radius: 3, y: 1)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
 
-            VStack(alignment: .leading, spacing: 8) {
-                Toggle(isOn: $updateManager.automaticallyChecksForUpdates) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("自动检查新版本")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.primary)
-                        Text("定期在后台检索最新版本并在发布时通知。")
-                            .font(.system(size: 10.5))
-                            .foregroundColor(.secondary)
+            if !updateManager.isAppStoreBuild {
+                VStack(alignment: .leading, spacing: 8) {
+                    Toggle(isOn: $updateManager.automaticallyChecksForUpdates) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("自动检查新版本")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.primary)
+                            Text("定期在后台检索最新版本并在发布时通知。")
+                                .font(.system(size: 10.5))
+                                .foregroundColor(.secondary)
+                        }
                     }
-                }
-                .toggleStyle(.checkbox)
+                    .toggleStyle(.checkbox)
 
-                Toggle(isOn: $updateManager.automaticallyDownloadsUpdates) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("在后台自动下载新版本")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.primary)
-                        Text("检测到更新后自动下载并在下次启动时准备就绪。")
-                            .font(.system(size: 10.5))
-                            .foregroundColor(.secondary)
+                    Toggle(isOn: $updateManager.automaticallyDownloadsUpdates) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("在后台自动下载新版本")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.primary)
+                            Text("检测到更新后自动下载并在下次启动时准备就绪。")
+                                .font(.system(size: 10.5))
+                                .foregroundColor(.secondary)
+                        }
                     }
+                    .toggleStyle(.checkbox)
                 }
-                .toggleStyle(.checkbox)
+                .padding(.top, 2)
+            } else {
+                Text("此版本来自 Mac App Store，所有软件更新与补丁均由系统商店统一安全推送。")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
             }
-            .padding(.top, 2)
         }
         .padding(14)
         .background(
@@ -356,9 +456,15 @@ public struct SettingsView: View {
                 .font(.system(size: 12, weight: .semibold, design: .rounded))
                 .foregroundColor(.secondary)
             Spacer()
-            Text("基于 Sparkle 2.0 安全签名更新机制")
-                .font(.system(size: 11))
-                .foregroundColor(.secondary.opacity(0.7))
+            if updateManager.isAppStoreBuild {
+                Text("Mac App Store 正式版")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary.opacity(0.7))
+            } else {
+                Text("基于 Sparkle 2.0 安全签名更新机制")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary.opacity(0.7))
+            }
         }
         .padding(.horizontal, 4)
     }

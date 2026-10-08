@@ -120,6 +120,14 @@ public final class CLIBridge {
                 process.executableURL = URL(fileURLWithPath: binaryPath)
                 process.arguments = arguments
 
+                var env = ProcessInfo.processInfo.environment
+                if !SecurityBookmarkManager.shared.authorizedPath.isEmpty {
+                    env["HOME"] = SecurityBookmarkManager.shared.authorizedPath
+                } else {
+                    env["HOME"] = SecurityBookmarkManager.shared.realHomeURL.path
+                }
+                process.environment = env
+
                 let stdoutPipe = Pipe()
                 let stderrPipe = Pipe()
                 process.standardOutput = stdoutPipe

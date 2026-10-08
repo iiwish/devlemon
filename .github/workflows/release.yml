@@ -73,15 +73,17 @@ jobs:
           go-version: '1.24'
           cache: true
 
-      - name: Build & Package DevLemon.app
+      - name: Build & Package DevLemon.app (Direct & MAS)
         run: |
-          bash mac/scripts/build_app.sh
+          bash mac/scripts/build_app.sh direct
+          bash mac/scripts/build_app.sh mas
 
-      - name: Create macOS Release Archive
+      - name: Create macOS Release Archives
         run: |
           TAG=${GITHUB_REF#refs/tags/}
           mkdir -p dist
           ditto -c -k --sequesterRsrc --keepParent build/DevLemon.app "dist/DevLemon-${TAG}-macOS.zip"
+          ditto -c -k --sequesterRsrc --keepParent build/DevLemon-MAS.app "dist/DevLemon-${TAG}-MAS.zip"
 
       - name: Generate / Update Sparkle appcast.xml
         env:

@@ -38,6 +38,19 @@ public final class AppState: ObservableObject {
     public func startScan(safeOnly: Bool = false) {
         guard currentStage != .scanning && currentStage != .cleaning else { return }
 
+        // 若处于沙盒环境 (App Store 版) 且未授权，先引导用户选取个人主文件夹
+        if SecurityBookmarkManager.shared.isSandboxed && !SecurityBookmarkManager.shared.hasAuthorization {
+            SecurityBookmarkManager.shared.requestAuthorization { granted in
+                if granted {
+                    self.startScan(safeOnly: safeOnly)
+                }
+            }
+            return
+        }
+
+        // 激活安全作用域访问
+        _ = SecurityBookmarkManager.shared.startAccessing()
+
         currentStage = .scanning
         errorMessage = nil
         scanProgress = 0.0
@@ -91,6 +104,8 @@ public final class AppState: ObservableObject {
     public func startClean() {
         guard currentStage == .results else { return }
         guard !selectedItemIDs.isEmpty else { return }
+
+        _ = SecurityBookmarkManager.shared.startAccessing()
 
         currentStage = .cleaning
         errorMessage = nil

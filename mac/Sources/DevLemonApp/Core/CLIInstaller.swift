@@ -20,7 +20,25 @@ public final class CLIInstaller: ObservableObject {
             return
         }
 
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        var shouldStopAccess = false
+        if SecurityBookmarkManager.shared.isSandboxed {
+            guard SecurityBookmarkManager.shared.hasAuthorization else {
+                checkStatus()
+                return
+            }
+            guard SecurityBookmarkManager.shared.startAccessing() else {
+                checkStatus()
+                return
+            }
+            shouldStopAccess = true
+        }
+        defer {
+            if shouldStopAccess {
+                SecurityBookmarkManager.shared.stopAccessing()
+            }
+        }
+
+        let home = SecurityBookmarkManager.shared.realHomeURL.path
         let localBin = (home as NSString).appendingPathComponent(".local/bin")
 
         // 确保 ~/.local/bin 目录存在
@@ -66,7 +84,22 @@ public final class CLIInstaller: ObservableObject {
             return (false, msg)
         }
 
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        var shouldStopAccess = false
+        if SecurityBookmarkManager.shared.isSandboxed {
+            guard SecurityBookmarkManager.shared.startAccessing() else {
+                let msg = "沙盒环境下请先在设置中授权访问个人主目录"
+                self.lastMessage = msg
+                return (false, msg)
+            }
+            shouldStopAccess = true
+        }
+        defer {
+            if shouldStopAccess {
+                SecurityBookmarkManager.shared.stopAccessing()
+            }
+        }
+
+        let home = SecurityBookmarkManager.shared.realHomeURL.path
         let localBin = (home as NSString).appendingPathComponent(".local/bin")
         if !FileManager.default.fileExists(atPath: localBin) {
             try? FileManager.default.createDirectory(atPath: localBin, withIntermediateDirectories: true)
@@ -84,7 +117,7 @@ public final class CLIInstaller: ObservableObject {
     }
 
     public func checkStatus() {
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let home = SecurityBookmarkManager.shared.realHomeURL.path
         let localBin = (home as NSString).appendingPathComponent(".local/bin")
         let devlemonLink = (localBin as NSString).appendingPathComponent("devlemon")
         let dlLink = (localBin as NSString).appendingPathComponent("dl")
