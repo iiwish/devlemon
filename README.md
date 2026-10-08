@@ -59,6 +59,18 @@ go install github.com/iiwish/devlemon/cmd/devlemon@latest
 | **`dl clean --safe`** | One-click clean 100% safe compiler & package caches |
 | **`dl clean --dry-run`** | Simulate cleanup without deleting any data |
 
+### 4. Native macOS Client (MenuBar Extra + Deep Clean)
+
+```bash
+make app      # Build self-contained build/DevLemon.app
+make run-app  # Launch the native macOS app
+```
+
+Features:
+- 🍋 **MenuBar Live Monitor**: Real-time network waveform graph, CPU, RAM and SSD gauges.
+- ⚡️ **Deep Scan Radar**: Glowing rotating hexagonal core animation with live path scanning.
+- 📦 **Categorized Accordion**: Foldable sections, risk badges (Safe / Rebuildable / Caution), and one-click clean.
+
 ---
 
 ## ⚡ The Problem
@@ -233,7 +245,7 @@ max_depth: 3
 - [x] Dynamic Bubble Tea TUI Dashboard with Tab jump navigation
 - [x] Official Homebrew tap with `dl` short command
 - [x] Automatic system language detection (EN / ZH)
-- [ ] **Native macOS Menu Bar App** (Lightweight SwiftUI status bar monitor & popover)
+- [x] **Native macOS Menu Bar App** (SwiftUI status bar monitor & popover inspired by Lemon Lite)
 - [ ] AI-Era artifact probe (Ollama weights, HuggingFace cache, Claude Code/Cursor worktrees)
 - [ ] Linux system cache probes (systemd journal, pacman/apt cache, podman)
 

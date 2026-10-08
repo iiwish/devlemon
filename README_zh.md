@@ -59,6 +59,18 @@ go install github.com/iiwish/devlemon/cmd/devlemon@latest
 | **`dl clean --safe`** | 一键安全清理 100% 绝对安全的缓存与包管理器文件 |
 | **`dl clean --dry-run`** | 预演模式，仅模拟清理过程，不真正删除任何文件 |
 
+### 4. 运行 macOS 原生 SwiftUI 客户端 (菜单栏浮窗 + 深度清理)
+
+```bash
+make app      # 编译并打包出独立的 build/DevLemon.app
+make run-app  # 一键启动运行原生客户端
+```
+
+原生 App 特性：
+- 🍋 **状态栏常驻监测**：实时网络上传/下载波形折线图、CPU、内存及磁盘使用率。
+- ⚡️ **雷达深度扫描**：发光旋转柠檬核芯动态动画，实时跳动路径追踪。
+- 📦 **层级手风琴列表**：分类折叠、安全/重构/谨慎风险徽章、运行保护标识、一键释放。
+
 ---
 
 ## ⚡ 诞生背景：为什么需要 DevLemon？
@@ -234,7 +246,7 @@ max_depth: 3
 - [x] 交互式终端 TUI 仪表盘（支持 Tab 快速跳跃与动态视口）
 - [x] 官方 Homebrew Tap 支持与 `dl` 极速短命令别名
 - [x] 系统环境自动语言识别（中英文自适应）
-- [ ] **macOS 原生菜单栏 App**（轻量级 SwiftUI 状态栏常驻浮窗）
+- [x] **macOS 原生菜单栏 App**（参考柠檬 Lite 设计的 SwiftUI 状态栏常驻浮窗 + 深度清理窗口）
 - [ ] AI 时代专项大模型缓存嗅探（Ollama 模型权重、HuggingFace 断点缓存、Claude Code/Cursor 临时文件）
 - [ ] Linux 系统与工具链支持（systemd 日志、pacman/apt 缓存、podman）
 

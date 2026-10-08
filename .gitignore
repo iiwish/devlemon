@@ -11,6 +11,8 @@
 *.test
 *.out
 dist/
+build/
+mac/.build/
 
 # OS files
 .DS_Store

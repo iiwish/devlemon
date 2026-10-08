@@ -141,6 +141,9 @@ func handleClean(args []string) {
 	fs := flag.NewFlagSet("clean", flag.ExitOnError)
 	safeOnly := fs.Bool("safe", false, "仅清理 100% 绝对安全项")
 	dryRun := fs.Bool("dry-run", false, "仅模拟演练，不真正删除")
+	jsonMode := fs.Bool("json", false, "输出 JSON 格式")
+	var itemsFilter string
+	fs.StringVar(&itemsFilter, "items", "", "指定要清理的 Item ID 列表 (英文逗号隔开)")
 	var workspaces string
 	fs.StringVar(&workspaces, "workspace", "", "指定工作区根目录")
 
@@ -159,8 +162,20 @@ func handleClean(args []string) {
 
 	report, err := eng.Scan(ctx)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "扫描出错: %v\n", err)
+		if *jsonMode {
+			fmt.Printf(`{"error": %q}`+"\n", err.Error())
+		} else {
+			fmt.Fprintf(os.Stderr, "扫描出错: %v\n", err)
+		}
 		os.Exit(1)
+	}
+
+	var allowedIDs map[string]bool
+	if itemsFilter != "" {
+		allowedIDs = make(map[string]bool)
+		for _, id := range strings.Split(itemsFilter, ",") {
+			allowedIDs[strings.TrimSpace(id)] = true
+		}
 	}
 
 	// 收集待清理项
@@ -170,7 +185,11 @@ func handleClean(args []string) {
 			if item.IsProtected {
 				continue
 			}
-			if *safeOnly && item.Risk != model.RiskSafe {
+			if allowedIDs != nil {
+				if !allowedIDs[item.ID] {
+					continue
+				}
+			} else if *safeOnly && item.Risk != model.RiskSafe {
 				continue
 			}
 			targets = append(targets, item)
@@ -178,27 +197,48 @@ func handleClean(args []string) {
 	}
 
 	if len(targets) == 0 {
-		fmt.Println("🎉 当前没有匹配的可清理项！")
-		return
-	}
-
-	if *dryRun {
-		fmt.Printf("🔍 【Dry-Run 预演模式】发现 %d 个清理项，预计释放 %s 空间:\n", len(targets), model.FormatBytes(sumItems(targets)))
-		for _, t := range targets {
-			fmt.Printf("  • [预演跳过] %-30s %10s\n", t.Title, t.SizeFormatted)
+		if *jsonMode {
+			fmt.Println(`{"freed_bytes": 0, "freed_formatted": "0 B", "cleaned_count": 0, "errors": []}`)
+		} else {
+			fmt.Println("🎉 当前没有匹配的可清理项！")
 		}
 		return
 	}
 
-	fmt.Printf("🚀 开始清理 %d 项资源，预计释放 %s 空间...\n", len(targets), model.FormatBytes(sumItems(targets)))
+	if *dryRun {
+		total := sumItems(targets)
+		if *jsonMode {
+			fmt.Printf(`{"freed_bytes": %d, "freed_formatted": %q, "cleaned_count": %d, "dry_run": true, "errors": []}`+"\n",
+				total, model.FormatBytes(total), len(targets))
+		} else {
+			fmt.Printf("🔍 【Dry-Run 预演模式】发现 %d 个清理项，预计释放 %s 空间:\n", len(targets), model.FormatBytes(total))
+			for _, t := range targets {
+				fmt.Printf("  • [预演跳过] %-30s %10s\n", t.Title, t.SizeFormatted)
+			}
+		}
+		return
+	}
+
+	if !*jsonMode {
+		fmt.Printf("🚀 开始清理 %d 项资源，预计释放 %s 空间...\n", len(targets), model.FormatBytes(sumItems(targets)))
+	}
 	cln := cleaner.NewCleaner(false)
 	freed, count, errs := cln.CleanItems(ctx, targets)
 
-	fmt.Printf("\n✨ 清理完毕！成功处理 %d 项，释放空间: \033[1;32m%s\033[0m\n", count, model.FormatBytes(freed))
-	if len(errs) > 0 {
-		fmt.Printf("⚠️ 共有 %d 项清理失败:\n", len(errs))
+	if *jsonMode {
+		var errStrs []string
 		for _, e := range errs {
-			fmt.Printf("  - %v\n", e)
+			errStrs = append(errStrs, fmt.Sprintf("%q", e.Error()))
+		}
+		fmt.Printf(`{"freed_bytes": %d, "freed_formatted": %q, "cleaned_count": %d, "errors": [%s]}`+"\n",
+			freed, model.FormatBytes(freed), count, strings.Join(errStrs, ","))
+	} else {
+		fmt.Printf("\n✨ 清理完毕！成功处理 %d 项，释放空间: \033[1;32m%s\033[0m\n", count, model.FormatBytes(freed))
+		if len(errs) > 0 {
+			fmt.Printf("⚠️ 共有 %d 项清理失败:\n", len(errs))
+			for _, e := range errs {
+				fmt.Printf("  - %v\n", e)
+			}
 		}
 	}
 }
