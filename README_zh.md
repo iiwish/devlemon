@@ -164,7 +164,7 @@ devlemon scan --json | jq '.total_reclaimable_bytes'
 - [x] iOS 模拟器运行态避让保护机制
 - [x] 零配置代码工程聚类嗅探器
 - [x] APFS 本地快照薄化联动
-- [ ] **交互式终端 TUI 仪表盘**（基于 [Bubble Tea](https://github.com/charmbracelet/bubbletea)）
+- [x] **交互式终端 TUI 仪表盘**（基于 [Bubble Tea](https://github.com/charmbracelet/bubbletea)）
 - [ ] **原生 macOS 菜单栏状态栏应用**（基于 SwiftUI 原生渲染，通过 JSON 管道驱动 Go 核心）
 - [ ] 更多 AI 时代产物支持（Ollama 本地模型、HuggingFace 权重、Cursor/Claude Code 历史工作区）
 - [ ] Linux 开发者环境支持（systemd 日志、Podman、包管理器缓存）

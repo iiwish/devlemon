@@ -203,7 +203,7 @@ max_depth: 3
 - [x] iOS Simulator Active State Shield
 - [x] Zero-config project workspace clustering sniffer
 - [x] APFS Snapshot thinning integration
-- [ ] **Interactive TUI Dashboard** (Powered by [Bubble Tea](https://github.com/charmbracelet/bubbletea))
+- [x] **Interactive TUI Dashboard** (Powered by [Bubble Tea](https://github.com/charmbracelet/bubbletea))
 - [ ] **Native macOS Menu Bar App** (Lightweight SwiftUI shell over CLI JSON stream)
 - [ ] AI-Era artifact probe (Ollama weights, HuggingFace cache, Claude Code/Cursor worktrees)
 - [ ] Linux support (systemd journal, apt/pacman caches, podman)
