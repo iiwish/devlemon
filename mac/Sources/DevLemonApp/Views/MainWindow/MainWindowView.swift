@@ -20,6 +20,17 @@ public struct MainWindowView: View {
             .ignoresSafeArea()
 
             VStack(spacing: 0) {
+                // 顶部极简拖动栏与红黄绿避让区
+                HStack {
+                    Spacer()
+                    Text("DevLemon Lite")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.secondary.opacity(0.8))
+                    Spacer()
+                }
+                .frame(height: 32)
+                .background(Color.black.opacity(0.15))
+
                 // 内容切换区
                 switch state.currentStage {
                 case .idle:

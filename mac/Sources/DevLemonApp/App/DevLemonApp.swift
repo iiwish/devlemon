@@ -3,8 +3,14 @@ import AppKit
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // 设置应用不在 Dock 强占位（也可以在 Info.plist 中设 LSUIElement）
-        // 允许作为辅助/常驻托盘应用，同时在需要时呼出全功能主窗口
+        NSApplication.shared.setActivationPolicy(.regular)
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag {
+            WindowManager.shared.showMainWindow()
+        }
+        return true
     }
 }
 
@@ -14,7 +20,10 @@ public final class WindowManager: ObservableObject {
 
     public func showMainWindow() {
         NSApplication.shared.activate(ignoringOtherApps: true)
-        if let window = NSApplication.shared.windows.first(where: { $0.title.contains("DevLemon") && !($0.className.contains("StatusBarWindow")) }) {
+        if let window = NSApplication.shared.windows.first(where: {
+            let title = $0.title
+            return (title.contains("DevLemon") || title.isEmpty) && !($0.className.contains("StatusBarWindow"))
+        }) {
             window.makeKeyAndOrderFront(nil)
         } else {
             openWindowAction?()
@@ -29,17 +38,7 @@ struct DevLemonApp: App {
     @Environment(\.openWindow) private var openWindow
 
     var body: some Scene {
-        // 菜单栏托盘
-        MenuBarExtra {
-            MenuBarPopoverView {
-                WindowManager.shared.showMainWindow()
-            }
-        } label: {
-            MenuBarLabelView()
-        }
-        .menuBarExtraStyle(.window)
-
-        // 主窗口
+        // 主窗口（放在第一个 Scene，启动时自动呈现）
         Window("DevLemon", id: "main") {
             MainWindowView()
                 .frame(minWidth: 720, minHeight: 480)
@@ -51,6 +50,16 @@ struct DevLemonApp: App {
         }
         .windowResizability(.contentSize)
         .windowStyle(.hiddenTitleBar)
+
+        // 菜单栏托盘
+        MenuBarExtra {
+            MenuBarPopoverView {
+                WindowManager.shared.showMainWindow()
+            }
+        } label: {
+            MenuBarLabelView()
+        }
+        .menuBarExtraStyle(.window)
 
         // 偏好设置
         Settings {
