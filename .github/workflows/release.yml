@@ -9,8 +9,8 @@ permissions:
   contents: write
 
 jobs:
-  release:
-    name: Build & Release
+  build-cli:
+    name: Build CLI Binaries
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -52,12 +52,85 @@ jobs:
           sha256sum *.tar.gz > checksums.txt
           cd ..
 
+      - name: Upload CLI artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-binaries
+          path: dist/
+
+  build-mac-app:
+    name: Build macOS DevLemon.app
+    runs-on: macos-14
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true
+
+      - name: Build & Package DevLemon.app
+        run: |
+          bash mac/scripts/build_app.sh
+
+      - name: Create macOS Release Archive
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          mkdir -p dist
+          ditto -c -k --sequesterRsrc --keepParent build/DevLemon.app "dist/DevLemon-${TAG}-macOS.zip"
+
+      - name: Generate / Update Sparkle appcast.xml
+        env:
+          SPARKLE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          SPARKLE_TOOL="mac/.build/artifacts/sparkle/Sparkle/bin/generate_appcast"
+          if [[ -n "$SPARKLE_KEY" && -f "$SPARKLE_TOOL" ]]; then
+            echo "Signing update with Sparkle key..."
+            echo "$SPARKLE_KEY" | "$SPARKLE_TOOL" \
+              --download-url-prefix "https://github.com/iiwish/devlemon/releases/download/${TAG}/" \
+              --ed-key-file - \
+              -o appcast.xml \
+              dist/
+          else
+            echo "Notice: SPARKLE_PRIVATE_KEY secret not found or tool unavailable, skipping automated appcast signing"
+          fi
+
+      - name: Upload Mac artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-app
+          path: |
+            dist/*.zip
+            appcast.xml
+
+  publish-release:
+    name: Publish GitHub Release
+    needs: [build-cli, build-mac-app]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare Release Files
+        run: |
+          mkdir -p release_files
+          find artifacts -type f -exec cp {} release_files/ \;
+          ls -la release_files/
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            dist/*.tar.gz
-            dist/checksums.txt
+          files: release_files/*
           generate_release_notes: true
           draft: false
           prerelease: false

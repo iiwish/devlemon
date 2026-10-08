@@ -4,6 +4,9 @@ import AppKit
 // MARK: - App 代理 (接管生命周期与统一调度)
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // 自动检测并安装/同步终端 CLI 软链接 (免去用户手动配置)
+        CLIInstaller.shared.autoInstallIfNeeded()
+
         // 启动时直接打开主窗口
         WindowManager.shared.showMainWindow()
     }

@@ -33,6 +33,8 @@ public final class SettingsWindowController: NSObject, NSWindowDelegate {
         newWindow.styleMask = [.titled, .closable]
         newWindow.isReleasedWhenClosed = false
         newWindow.delegate = self
+        newWindow.minSize = NSSize(width: 560, height: 480)
+        newWindow.setContentSize(NSSize(width: 560, height: 530))
         newWindow.center()
         newWindow.titleVisibility = .visible
         newWindow.titlebarAppearsTransparent = false

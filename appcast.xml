@@ -1,0 +1,15 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>DevLemon</title>
+        <item>
+            <title>0.2.5</title>
+            <pubDate>Thu, 08 Oct 2026 19:27:13 +0900</pubDate>
+            <sparkle:version>0.2.5</sparkle:version>
+            <sparkle:shortVersionString>0.2.5</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <enclosure url="https://github.com/iiwish/devlemon/releases/download/v0.2.5/DevLemon-0.2.5.zip" length="4061720" type="application/octet-stream" sparkle:edSignature="+DaNiTDB2WyAXsefMBFI2rVMA2FzucYlwpugWFDS6A30dCSDr4EA7kfjhwFIHza96oQjSXPg0RNaDovGp8qdBw=="/>
+        </item>
+    </channel>
+</rss>

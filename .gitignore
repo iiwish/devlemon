@@ -29,3 +29,4 @@ mac/.build/
 
 # Config
 config.yaml
+mac/Resources/sparkle_keys.json
