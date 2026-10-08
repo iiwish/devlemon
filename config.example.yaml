@@ -1,0 +1,28 @@
+# devlemon 通用配置文件示例
+# 默认路径: ~/.config/devlemon/config.yaml
+
+# 扫描的工作区根目录列表
+# 注意：devlemon 不硬编码任何个人路径。默认会自动扫描系统常见的标准目录（如 ~/Developer, ~/Projects, ~/Workspace, ~/Code, ~/src 等）
+# 您也可以在此处添加您个性化的代码存储根目录：
+workspace_paths:
+  # - ~/Projects
+  # - ~/Developer
+  # - ~/Code
+
+# 项目休眠天数阈值：超过此天数未修改的项目构建产物被判定为“已休眠可清理项”
+dormancy_days: 7
+
+# 识别为可安全重构的中间构建产物目录名
+target_dir_names:
+  - target         # Rust / Cargo, Maven, Scala
+  - .build         # Swift Package Manager (SPM)
+  - node_modules   # Node.js / 前端依赖
+  - build          # C++ / CMake / Gradle / Java
+  - .next          # Next.js 静态预构建产物
+  - DerivedData    # Xcode 本地构建缓存
+
+# 工作区扫描最大深度
+max_depth: 3
+
+# 是否默认仅处理 100% 绝对安全的缓存项
+safe_only: false
