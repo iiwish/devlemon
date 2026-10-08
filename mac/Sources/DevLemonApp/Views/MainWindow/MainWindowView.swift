@@ -8,7 +8,7 @@ public struct MainWindowView: View {
 
     public var body: some View {
         ZStack {
-            // 背景层：沉浸式深色微渐变背景
+            // 背景层：沉浸式深色微渐变背景，全屏铺满到顶
             LinearGradient(
                 colors: [
                     Color(red: 0.11, green: 0.12, blue: 0.14),
@@ -20,8 +20,8 @@ public struct MainWindowView: View {
             .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // 顶部极简单行导航栏 (紧凑压缩到一行，高度 28pt，无厚重黑底与分割线)
-                topCompactBar
+                // 与系统红黄绿交通灯处于同一水平行的单行标题栏 (彻底消除多余空行)
+                topInlineBar
 
                 // 内容切换区
                 switch state.currentStage {
@@ -37,6 +37,7 @@ public struct MainWindowView: View {
                     CleanSuccessView()
                 }
             }
+            .ignoresSafeArea(edges: .top)
 
             // 错误浮层
             if let error = state.errorMessage {
@@ -75,14 +76,14 @@ public struct MainWindowView: View {
         .frame(minWidth: 700, minHeight: 480)
     }
 
-    // MARK: - 极简单行顶部导航栏 (压缩到一行)
-    private var topCompactBar: some View {
+    // MARK: - 与系统红黄绿处于同一行的统一标题栏
+    private var topInlineBar: some View {
         HStack(spacing: 10) {
-            // 左侧：为系统红黄绿交通灯留出避让间距 (~68pt)
+            // 左侧：为系统红黄绿交通灯预留位置 (宽 78pt，完全避让，同行排列)
             Color.clear
-                .frame(width: 68, height: 1)
+                .frame(width: 78, height: 1)
 
-            // 返回按钮 (扫描/结果/完成页显示，紧贴红黄绿右侧，不占多余高度)
+            // 返回按钮 (在非首页状态下显示，紧随红黄绿右侧)
             if state.currentStage != .idle {
                 Button {
                     withAnimation(.easeInOut(duration: 0.25)) {
@@ -96,8 +97,8 @@ public struct MainWindowView: View {
                             .font(.system(size: 11, weight: .medium))
                     }
                     .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(Color.white.opacity(0.08))
+                    .padding(.vertical, 3.5)
+                    .background(Color.white.opacity(0.10))
                     .foregroundColor(.primary)
                     .cornerRadius(5)
                 }
@@ -107,7 +108,7 @@ public struct MainWindowView: View {
 
             Spacer()
 
-            // 居中单行标题
+            // 居中单行标题 (与红黄绿同高)
             Text("DevLemon")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundColor(.secondary.opacity(0.85))
@@ -119,16 +120,16 @@ public struct MainWindowView: View {
                 SettingsWindowController.shared.show()
             } label: {
                 Image(systemName: "gearshape")
-                    .font(.system(size: 12))
+                    .font(.system(size: 12.5))
                     .foregroundColor(.secondary)
-                    .padding(5)
+                    .padding(6)
             }
             .buttonStyle(.plain)
             .help("打开偏好设置")
-            .padding(.trailing, 10)
+            .padding(.trailing, 12)
         }
-        .frame(height: 28)
-        .padding(.top, 4)
+        .frame(height: 32)
+        .padding(.top, 6)
     }
 
     // MARK: - 就绪首页 (Idle)
@@ -136,7 +137,7 @@ public struct MainWindowView: View {
         VStack(spacing: 22) {
             Spacer()
 
-            // 全新高保真立体渐变柠檬 Hero 图标 (替换原简陋 Emoji)
+            // 全新高保真立体渐变柠檬 Hero 图标
             HeroLemonIcon(size: 105)
 
             VStack(spacing: 6) {

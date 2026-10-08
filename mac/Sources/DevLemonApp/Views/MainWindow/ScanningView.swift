@@ -58,12 +58,8 @@ public struct ScanningView: View {
                     .frame(width: 90, height: 90)
                     .rotationEffect(.degrees(-rotationDegree * 0.7))
 
-                // 中心发光微标
-                VStack(spacing: 2) {
-                    Text("🍋")
-                        .font(.system(size: 38))
-                        .shadow(color: Color.yellow.opacity(0.8), radius: 10)
-                }
+                // 中心发光微标 (高保真立体柠檬)
+                HeroLemonIcon(size: 48)
             }
             .frame(height: 240)
 
