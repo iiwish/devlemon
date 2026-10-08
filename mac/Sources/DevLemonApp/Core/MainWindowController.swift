@@ -1,8 +1,9 @@
 import AppKit
 import SwiftUI
 
-public final class SettingsWindowController: NSObject, NSWindowDelegate {
-    public static let shared = SettingsWindowController()
+// MARK: - 主窗口控制器 (AppKit 级别精准接管生命周期与程序坞交互)
+public final class MainWindowController: NSObject, NSWindowDelegate {
+    public static let shared = MainWindowController()
 
     private var window: NSWindow?
 
@@ -16,6 +17,7 @@ public final class SettingsWindowController: NSObject, NSWindowDelegate {
     }
 
     public func show() {
+        // 先确保切换为常规应用策略以显示 Dock 图标
         WindowManager.shared.setActivationPolicy(.regular)
         NSApplication.shared.activate(ignoringOtherApps: true)
 
@@ -26,16 +28,19 @@ public final class SettingsWindowController: NSObject, NSWindowDelegate {
             return
         }
 
-        // 创建原生专属偏好设置窗口
-        let hostingController = NSHostingController(rootView: SettingsView())
+        // 创建原生专属主窗口
+        let hostingController = NSHostingController(rootView: MainWindowView())
         let newWindow = NSWindow(contentViewController: hostingController)
-        newWindow.title = "偏好设置"
-        newWindow.styleMask = [.titled, .closable]
+        newWindow.title = "DevLemon"
+        newWindow.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
         newWindow.isReleasedWhenClosed = false
         newWindow.delegate = self
+        newWindow.minSize = NSSize(width: 720, height: 480)
+        newWindow.setContentSize(NSSize(width: 760, height: 520))
         newWindow.center()
-        newWindow.titleVisibility = .visible
-        newWindow.titlebarAppearsTransparent = false
+        newWindow.titleVisibility = .hidden
+        newWindow.titlebarAppearsTransparent = true
+        newWindow.setFrameAutosaveName("DevLemonMainWindow")
 
         self.window = newWindow
         newWindow.makeKeyAndOrderFront(nil)
@@ -50,9 +55,18 @@ public final class SettingsWindowController: NSObject, NSWindowDelegate {
         }
     }
 
+    // 窗口即将/已经关闭时，延迟刷新程序坞显示状态
     public func windowWillClose(_ notification: Notification) {
         DispatchQueue.main.async {
             WindowManager.shared.updateDockVisibility()
         }
+    }
+
+    public func windowDidMiniaturize(_ notification: Notification) {
+        WindowManager.shared.updateDockVisibility()
+    }
+
+    public func windowDidDeminiaturize(_ notification: Notification) {
+        WindowManager.shared.updateDockVisibility()
     }
 }

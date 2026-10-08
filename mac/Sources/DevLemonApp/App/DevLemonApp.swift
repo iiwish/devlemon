@@ -1,76 +1,63 @@
 import SwiftUI
 import AppKit
 
+// MARK: - App 代理 (接管生命周期与统一调度)
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApplication.shared.setActivationPolicy(.regular)
+        // 启动时直接打开主窗口
+        WindowManager.shared.showMainWindow()
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if !flag {
-            WindowManager.shared.showMainWindow()
-        }
+        // 用户在 Finder/Spotlight/Launchpad 再次点击应用图标时唤起主窗口
+        WindowManager.shared.showMainWindow()
         return true
     }
 }
 
+// MARK: - 窗口与程序坞显隐全局管理器
 public final class WindowManager: ObservableObject {
     public static let shared = WindowManager()
-    public var openWindowAction: (() -> Void)?
-    public var openSettingsAction: (() -> Void)?
 
     public func showMainWindow() {
-        NSApplication.shared.activate(ignoringOtherApps: true)
-        if let window = NSApplication.shared.windows.first(where: {
-            let title = $0.title
-            return (title.contains("DevLemon") || title.isEmpty) && !($0.className.contains("StatusBarWindow")) && !title.contains("偏好设置")
-        }) {
-            window.makeKeyAndOrderFront(nil)
-        } else {
-            openWindowAction?()
-        }
+        MainWindowController.shared.show()
     }
 
     public func showSettingsWindow() {
         SettingsWindowController.shared.show()
     }
+
+    public func setActivationPolicy(_ policy: NSApplication.ActivationPolicy) {
+        if NSApplication.shared.activationPolicy() != policy {
+            NSApplication.shared.setActivationPolicy(policy)
+        }
+    }
+
+    // 核心逻辑：若主窗口与设置窗口均未打开，则隐藏程序坞图标 (accessory 策略)；否则显示 (regular 策略)
+    public func updateDockVisibility() {
+        let isMainOpen = MainWindowController.shared.isWindowVisible
+        let isSettingsOpen = SettingsWindowController.shared.isWindowVisible
+        let shouldShowInDock = isMainOpen || isSettingsOpen
+
+        let targetPolicy: NSApplication.ActivationPolicy = shouldShowInDock ? .regular : .accessory
+
+        if NSApplication.shared.activationPolicy() != targetPolicy {
+            NSApplication.shared.setActivationPolicy(targetPolicy)
+            if targetPolicy == .regular {
+                NSApplication.shared.activate(ignoringOtherApps: true)
+            }
+        }
+    }
 }
 
+// MARK: - 应用主入口
 @main
 struct DevLemonApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var appState = AppState.shared
     @ObservedObject private var settings = AppSettings.shared
-    @Environment(\.openWindow) private var openWindow
 
     var body: some Scene {
-        // 主窗口（启动时呈现）
-        Window("DevLemon", id: "main") {
-            MainWindowView()
-                .frame(minWidth: 720, minHeight: 480)
-                .onAppear {
-                    WindowManager.shared.openWindowAction = {
-                        openWindow(id: "main")
-                    }
-                    WindowManager.shared.openSettingsAction = {
-                        openWindow(id: "preferences")
-                    }
-                }
-        }
-        .windowResizability(.contentSize)
-        .windowStyle(.hiddenTitleBar)
-
-        // 偏好设置窗口
-        Window("偏好设置", id: "preferences") {
-            SettingsView()
-                .onAppear {
-                    WindowManager.shared.openSettingsAction = {
-                        openWindow(id: "preferences")
-                    }
-                }
-        }
-        .windowResizability(.contentSize)
-
         // 菜单栏托盘
         MenuBarExtra {
             MenuBarPopoverView {
