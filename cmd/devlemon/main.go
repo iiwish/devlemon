@@ -12,22 +12,31 @@ import (
 	"devlemon/internal/engine"
 	"devlemon/internal/model"
 	"devlemon/internal/reporter"
+	"devlemon/internal/tui"
 )
 
 func main() {
-	if len(os.Args) < 2 {
-		printUsage()
+	// 如果不带参数直接运行 devlemon，或显式指定 tui / -i，默认启动全屏交互式 TUI
+	if len(os.Args) == 1 || (len(os.Args) >= 2 && (os.Args[1] == "tui" || os.Args[1] == "-i")) {
+		cfg := config.DefaultConfig()
+		if err := tui.RunTUI(cfg); err != nil {
+			fmt.Fprintf(os.Stderr, "TUI 启动异常: %v\n", err)
+			os.Exit(1)
+		}
 		return
 	}
 
 	subcommand := os.Args[1]
 
 	switch subcommand {
+	case "tui", "-i":
+		cfg := config.DefaultConfig()
+		_ = tui.RunTUI(cfg)
 	case "scan":
 		handleScan(os.Args[2:])
 	case "clean":
 		handleClean(os.Args[2:])
-	case "version":
+	case "version", "-v", "--version":
 		fmt.Println("devlemon v0.1.0 (Darwin/arm64)")
 	case "help", "-h", "--help":
 		printUsage()
