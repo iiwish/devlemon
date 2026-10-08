@@ -2,7 +2,7 @@ import SwiftUI
 import ServiceManagement
 
 public struct SettingsView: View {
-    @AppStorage("showSpeedInMenuBar") private var showSpeedInMenuBar: Bool = false
+    @AppStorage("menuBarDisplayStyle") private var displayStyle: String = MenuBarDisplayStyle.networkDual.rawValue
     @AppStorage("autoScanOnLaunch") private var autoScanOnLaunch: Bool = false
     @State private var launchAtLogin: Bool = false
     @State private var customWorkspaces: String = ""
@@ -20,8 +20,13 @@ public struct SettingsView: View {
                 Toggle("启动应用后自动执行扫描", isOn: $autoScanOnLaunch)
             }
 
-            Section(header: Text("菜单栏托盘显示").font(.headline)) {
-                Toggle("在菜单栏实时显示上传/下载网速", isOn: $showSpeedInMenuBar)
+            Section(header: Text("菜单栏常驻显示").font(.headline)) {
+                Picker("常驻数据显示样式", selection: $displayStyle) {
+                    ForEach(MenuBarDisplayStyle.allCases) { style in
+                        Text(style.title).tag(style.rawValue)
+                    }
+                }
+                .pickerStyle(.radioGroup)
             }
 
             Section(header: Text("代码工作区扫描路径").font(.headline)) {

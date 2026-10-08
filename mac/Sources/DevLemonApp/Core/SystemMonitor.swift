@@ -5,21 +5,32 @@ import Darwin
 public final class SystemMonitor: ObservableObject {
     public static let shared = SystemMonitor()
 
+    // MARK: - CPU
     @Published public var cpuUsage: Double = 0.0          // 0.0 - 100.0%
+    @Published public var cpuCoreCount: Int = ProcessInfo.processInfo.activeProcessorCount
+    @Published public var cpuSubtitle: String = "\(ProcessInfo.processInfo.activeProcessorCount) 核正常"
+
+    // MARK: - Memory
     @Published public var memoryUsage: Double = 0.0       // 0.0 - 100.0%
     @Published public var memoryUsedFormatted: String = "0 GB"
     @Published public var memoryTotalFormatted: String = "0 GB"
-    
+    @Published public var memorySubtitle: String = "0 GB"
+
+    // MARK: - Disk
     @Published public var diskUsagePercent: Double = 0.0  // 0.0 - 100.0%
     @Published public var diskFreeFormatted: String = "0 GB"
     @Published public var diskTotalFormatted: String = "0 GB"
+    @Published public var diskSubtitle: String = "剩 0 GB"
 
+    // MARK: - Network
     @Published public var downloadSpeedBytesPerSec: Double = 0.0
     @Published public var uploadSpeedBytesPerSec: Double = 0.0
     @Published public var downloadSpeedFormatted: String = "0 KB/s"
     @Published public var uploadSpeedFormatted: String = "0 KB/s"
+    @Published public var downloadSpeedShort: String = "0K"
+    @Published public var uploadSpeedShort: String = "0K"
 
-    // 历史网速数据队列（用于实时波形图绘制，保留最近 30 秒）
+    // 历史网速数据队列（用于实时波形图绘制，保留 25 个采样点）
     @Published public var downloadHistory: [Double] = Array(repeating: 0.0, count: 25)
     @Published public var uploadHistory: [Double] = Array(repeating: 0.0, count: 25)
 
@@ -35,12 +46,17 @@ public final class SystemMonitor: ObservableObject {
     }
 
     public func startMonitoring() {
-        // 初始采样
+        // 建立初始网络基线
+        let initialBytes = sampleNetworkBytes()
+        self.prevNetworkInBytes = initialBytes.0
+        self.prevNetworkOutBytes = initialBytes.1
+        self.lastSampleTime = Date()
+
         updateDisk()
         updateMemory()
-        _ = sampleNetworkBytes()
         _ = sampleCpuUsage()
 
+        // 1秒定时刷新
         timer = Timer.publish(every: 1.0, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
@@ -61,7 +77,15 @@ public final class SystemMonitor: ObservableObject {
 
     // MARK: - CPU Usage
     private func updateCpu() {
-        self.cpuUsage = sampleCpuUsage()
+        let usage = sampleCpuUsage()
+        self.cpuUsage = usage
+        if usage < 30 {
+            self.cpuSubtitle = "\(cpuCoreCount) 核负载低"
+        } else if usage < 70 {
+            self.cpuSubtitle = "\(cpuCoreCount) 核正常"
+        } else {
+            self.cpuSubtitle = "\(cpuCoreCount) 核繁忙"
+        }
     }
 
     private func sampleCpuUsage() -> Double {
@@ -136,6 +160,7 @@ public final class SystemMonitor: ObservableObject {
         self.memoryUsage = min(100.0, max(0.0, percent))
         self.memoryUsedFormatted = ByteFormatter.format(Int64(used))
         self.memoryTotalFormatted = ByteFormatter.format(Int64(total))
+        self.memorySubtitle = "已用 \(self.memoryUsedFormatted)"
     }
 
     // MARK: - Disk Usage
@@ -149,6 +174,7 @@ public final class SystemMonitor: ObservableObject {
                 self.diskUsagePercent = min(100.0, max(0.0, percent))
                 self.diskFreeFormatted = ByteFormatter.format(Int64(available))
                 self.diskTotalFormatted = ByteFormatter.format(Int64(total))
+                self.diskSubtitle = "可用 \(self.diskFreeFormatted)"
             }
         } catch {
             // fallback
@@ -167,15 +193,19 @@ public final class SystemMonitor: ObservableObject {
         var cursor: UnsafeMutablePointer<ifaddrs>? = first
         while let current = cursor {
             let flags = Int32(current.pointee.ifa_flags)
-            // Filter loopback and inactive
-            if (flags & IFF_UP) != 0 && (flags & IFF_LOOPBACK) == 0 {
+            let isUp = (flags & IFF_UP) != 0
+            let isRunning = (flags & IFF_RUNNING) != 0
+            let isLoopback = (flags & IFF_LOOPBACK) != 0
+
+            if isUp && isRunning && !isLoopback {
                 let name = String(cString: current.pointee.ifa_name)
-                // Filter primary interfaces like en0, en1, pdp_ip0, etc.
-                if name.hasPrefix("en") || name.hasPrefix("ap") || name.hasPrefix("pdp_ip") {
-                    if let data = current.pointee.ifa_data {
-                        let ifData = data.assumingMemoryBound(to: if_data64.self)
-                        inBytes += ifData.pointee.ifi_ibytes
-                        outBytes += ifData.pointee.ifi_obytes
+                // 排除 lo 开头的回环网口
+                if !name.hasPrefix("lo") {
+                    if let addr = current.pointee.ifa_addr, addr.pointee.sa_family == UInt8(AF_LINK), let data = current.pointee.ifa_data {
+                        // 在 macOS BSD 中，AF_LINK 对应 struct if_data
+                        let ifData = data.assumingMemoryBound(to: if_data.self)
+                        inBytes += UInt64(ifData.pointee.ifi_ibytes)
+                        outBytes += UInt64(ifData.pointee.ifi_obytes)
                     }
                 }
             }
@@ -200,6 +230,9 @@ public final class SystemMonitor: ObservableObject {
             self.downloadSpeedFormatted = formatSpeed(inSpeed)
             self.uploadSpeedFormatted = formatSpeed(outSpeed)
 
+            self.downloadSpeedShort = formatShortSpeed(inSpeed)
+            self.uploadSpeedShort = formatShortSpeed(outSpeed)
+
             // 更新折线历史队列
             var dl = self.downloadHistory
             dl.removeFirst()
@@ -216,15 +249,27 @@ public final class SystemMonitor: ObservableObject {
         prevNetworkOutBytes = currentOut
     }
 
-    private func formatSpeed(_ bytesPerSec: Double) -> String {
+    public func formatSpeed(_ bytesPerSec: Double) -> String {
         let kb = bytesPerSec / 1024
         let mb = kb / 1024
         if mb >= 1.0 {
             return String(format: "%.1f MB/s", mb)
         } else if kb >= 1.0 {
-            return String(format: "%.0f KB/s", kb)
+            return String(format: "%.1f KB/s", kb)
         } else {
             return String(format: "%.0f B/s", bytesPerSec)
+        }
+    }
+
+    public func formatShortSpeed(_ bytesPerSec: Double) -> String {
+        let kb = bytesPerSec / 1024
+        let mb = kb / 1024
+        if mb >= 1.0 {
+            return String(format: "%.1fM", mb)
+        } else if kb >= 1.0 {
+            return String(format: "%.0fK", kb)
+        } else {
+            return "\(Int(bytesPerSec))B"
         }
     }
 }

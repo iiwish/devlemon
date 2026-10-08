@@ -74,30 +74,31 @@ public struct MenuBarPopoverView: View {
                     .fill(Color.white.opacity(0.04))
             )
 
-            // Hardware Gauges
-            HStack(spacing: 20) {
+            // Hardware Gauges (三大等宽微卡片)
+            HStack(spacing: 10) {
                 CircularGaugeView(
                     title: "CPU",
                     percent: monitor.cpuUsage,
+                    subtitle: monitor.cpuSubtitle,
                     tintColor: .blue
                 )
 
                 CircularGaugeView(
                     title: "内存",
                     percent: monitor.memoryUsage,
-                    subtitle: monitor.memoryUsedFormatted,
+                    subtitle: monitor.memorySubtitle,
                     tintColor: .orange
                 )
 
                 CircularGaugeView(
                     title: "主盘",
                     percent: monitor.diskUsagePercent,
-                    subtitle: "剩 \(monitor.diskFreeFormatted)",
+                    subtitle: monitor.diskSubtitle,
                     tintColor: .green
                 )
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 4)
+            .padding(.vertical, 2)
 
             // Network Waveform
             NetworkSpeedGraph()
