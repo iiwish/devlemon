@@ -40,7 +40,7 @@ jobs:
             OUTPUT_NAME="devlemon-${TAG}-${GOOS}-${GOARCH}"
             
             echo "Building for ${GOOS}/${GOARCH}..."
-            env GOOS=$GOOS GOARCH=$GOARCH CGO_ENABLED=0 go build -ldflags="-s -w" -o "dist/devlemon" ./cmd/devlemon
+            env GOOS=$GOOS GOARCH=$GOARCH CGO_ENABLED=0 go build -ldflags="-s -w -X main.Version=${TAG}" -o "dist/devlemon" ./cmd/devlemon
             
             cd dist
             tar -czf "${OUTPUT_NAME}.tar.gz" devlemon

@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 
 	"devlemon/internal/cleaner"
@@ -13,6 +14,10 @@ import (
 	"devlemon/internal/model"
 	"devlemon/internal/reporter"
 	"devlemon/internal/tui"
+)
+
+var (
+	Version = "v0.2.1"
 )
 
 func main() {
@@ -37,7 +42,7 @@ func main() {
 	case "clean":
 		handleClean(os.Args[2:])
 	case "version", "-v", "--version":
-		fmt.Println("devlemon v0.1.0 (Darwin/arm64)")
+		fmt.Printf("devlemon %s (%s/%s)\n", Version, runtime.GOOS, runtime.GOARCH)
 	case "help", "-h", "--help":
 		printUsage()
 	default:
