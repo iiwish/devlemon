@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"sort"
 	"sync"
 	"syscall"
 	"time"
@@ -20,9 +21,10 @@ func NewEngine(cfg *config.Config) *Engine {
 	e := &Engine{
 		cfg: cfg,
 		probes: []probe.Probe{
-			probe.NewCacheProbe(),
+			probe.NewSystemMaintenanceProbe(),
 			probe.NewDockerProbe(),
 			probe.NewSimulatorProbe(),
+			probe.NewCacheProbe(),
 			probe.NewWorkspaceProbe(),
 		},
 	}
@@ -71,6 +73,19 @@ func (e *Engine) Scan(ctx context.Context) (*model.ScanReport, error) {
 			report.TotalReclaimableBytes += res.group.TotalReclaimableBytes
 		}
 	}
+
+	// 3. 稳定排序组：按优先级展示各类目
+	categoryOrder := map[model.Category]int{
+		model.CategorySystemCache:    1, // 🧹 系统基础维护与废纸篓
+		model.CategoryDocker:         2, // 🐳 Docker / OrbStack 容器资源
+		model.CategorySimulator:      3, // 🛠️ iOS 模拟器环境
+		model.CategoryPackageCache:   4, // 📦 开发语言与包管理器缓存
+		model.CategoryWorkspaceBuild: 5, // 📂 项目构建产物与依赖
+	}
+
+	sort.Slice(report.Groups, func(i, j int) bool {
+		return categoryOrder[report.Groups[i].Category] < categoryOrder[report.Groups[j].Category]
+	})
 
 	return report, nil
 }

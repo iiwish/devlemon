@@ -109,6 +109,27 @@ func (p *CacheProbe) Scan(ctx context.Context, cfg *config.Config) (*model.Group
 			subpath:     filepath.Join("Library", "Caches", "ms-playwright"),
 			risk:        model.RiskSafe,
 		},
+		{
+			id:          "puppeteer_browsers",
+			title:       i18n.T("Puppeteer Headless Browsers", "Puppeteer 无头测试浏览器缓存"),
+			description: i18n.T("Downloaded Chromium browser binaries for Puppeteer", "Puppeteer 离线测试浏览器运行时 (~/.cache/puppeteer)"),
+			subpath:     filepath.Join(".cache", "puppeteer"),
+			risk:        model.RiskSafe,
+		},
+		{
+			id:          "cocoapods_cache",
+			title:       i18n.T("CocoaPods Dependency Cache", "CocoaPods 依赖下载缓存"),
+			description: i18n.T("Downloaded pods archives and specs (~/Library/Caches/CocoaPods)", "CocoaPods 本地下载归档包，删除无副作用"),
+			subpath:     filepath.Join("Library", "Caches", "CocoaPods"),
+			risk:        model.RiskSafe,
+		},
+		{
+			id:          "nodegyp_cache",
+			title:       i18n.T("node-gyp Header Cache", "node-gyp 原生模块编译头文件缓存"),
+			description: i18n.T("Node.js C++ header files for compiling native addons", "编译 Node 原生扩展下载的 C++ 头文件缓存"),
+			subpath:     filepath.Join("Library", "Caches", "node-gyp"),
+			risk:        model.RiskSafe,
+		},
 	}
 
 	group := &model.Group{
