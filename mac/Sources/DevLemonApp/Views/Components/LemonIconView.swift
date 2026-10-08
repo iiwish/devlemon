@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - 1. 状态栏与偏好设置专用：极简单色矢量柠檬图标 (Monochrome Lemon Icon)
+// MARK: - 1. 状态栏单色矢量柠檬图标 (精细匹配 Apple 🍋 剪影轮廓)
 public struct MonochromeLemonIcon: View {
     public var size: CGFloat = 14
 
@@ -13,51 +13,64 @@ public struct MonochromeLemonIcon: View {
             let w = canvasSize.width
             let h = canvasSize.height
 
-            // 绘制倾斜的柠檬轮廓
-            var lemonPath = Path()
-            // 稍稍倾斜 -15 度
-            let cx = w * 0.48
-            let cy = h * 0.54
-            let rx = w * 0.38
-            let ry = h * 0.32
+            // 果蒂基部与右下尖端坐标 (与 Apple 🍋 倾角完全一致)
+            let stem = CGPoint(x: w * 0.38, y: h * 0.30)
+            let tip = CGPoint(x: w * 0.78, y: h * 0.78)
 
-            // 绘制带有两端微尖特征的柠檬椭圆轮廓
-            lemonPath.move(to: CGPoint(x: cx - rx * 1.15, y: cy))
-            // 左上到右尖
-            lemonPath.addCurve(
-                to: CGPoint(x: cx + rx * 1.15, y: cy),
-                control1: CGPoint(x: cx - rx * 0.6, y: cy - ry * 1.25),
-                control2: CGPoint(x: cx + rx * 0.6, y: cy - ry * 1.25)
+            // 1. 柠檬本体
+            var bodyPath = Path()
+            bodyPath.move(to: stem)
+            bodyPath.addCurve(
+                to: tip,
+                control1: CGPoint(x: w * 0.92, y: h * 0.28),
+                control2: CGPoint(x: w * 0.95, y: h * 0.65)
             )
-            // 右尖到左尖
-            lemonPath.addCurve(
-                to: CGPoint(x: cx - rx * 1.15, y: cy),
-                control1: CGPoint(x: cx + rx * 0.6, y: cy + ry * 1.25),
-                control2: CGPoint(x: cx - rx * 0.6, y: cy + ry * 1.25)
+            bodyPath.addCurve(
+                to: stem,
+                control1: CGPoint(x: w * 0.56, y: h * 0.96),
+                control2: CGPoint(x: w * 0.18, y: h * 0.62)
             )
-            lemonPath.closeSubpath()
+            bodyPath.closeSubpath()
 
-            // 绘制顶部嫩叶
-            var leafPath = Path()
-            let leafBase = CGPoint(x: cx + rx * 0.2, y: cy - ry * 0.9)
-            let leafTip = CGPoint(x: cx + rx * 0.8, y: cy - ry * 1.7)
-            leafPath.move(to: leafBase)
-            leafPath.addQuadCurve(to: leafTip, control: CGPoint(x: cx + rx * 0.1, y: cy - ry * 1.6))
-            leafPath.addQuadCurve(to: leafBase, control: CGPoint(x: cx + rx * 0.75, y: cy - ry * 1.0))
-            leafPath.closeSubpath()
+            // 2. 左侧大绿叶 (向左上方舒展)
+            var bigLeaf = Path()
+            bigLeaf.move(to: stem)
+            bigLeaf.addQuadCurve(
+                to: CGPoint(x: w * 0.08, y: h * 0.14),
+                control: CGPoint(x: w * 0.08, y: h * 0.36)
+            )
+            bigLeaf.addQuadCurve(
+                to: stem,
+                control: CGPoint(x: w * 0.32, y: h * 0.12)
+            )
+            bigLeaf.closeSubpath()
 
-            // 渲染单色轮廓与填充
-            context.fill(leafPath, with: .color(.primary.opacity(0.9)))
-            context.stroke(lemonPath, with: .color(.primary), style: StrokeStyle(lineWidth: w * 0.10, lineCap: .round, lineJoin: .round))
+            // 3. 右侧小绿叶 (向上方小巧挺立)
+            var smallLeaf = Path()
+            smallLeaf.move(to: stem)
+            smallLeaf.addQuadCurve(
+                to: CGPoint(x: w * 0.56, y: h * 0.12),
+                control: CGPoint(x: w * 0.42, y: h * 0.14)
+            )
+            smallLeaf.addQuadCurve(
+                to: stem,
+                control: CGPoint(x: w * 0.60, y: h * 0.24)
+            )
+            smallLeaf.closeSubpath()
+
+            // 纯色模板填充
+            context.fill(bodyPath, with: .color(.primary))
+            context.fill(bigLeaf, with: .color(.primary))
+            context.fill(smallLeaf, with: .color(.primary))
         }
         .frame(width: size, height: size)
     }
 }
 
-// MARK: - 2. 首页中央发光大图标：高保真拟物立体渐变柠檬 (Hero Lemon Icon)
+// MARK: - 2. 经典 🍋 风格高保真主图标 (Hero Lemon Icon)
 public struct HeroLemonIcon: View {
     public var size: CGFloat = 110
-    @State private var breathing: Bool = false
+    @State private var pulse: Bool = false
 
     public init(size: CGFloat = 110) {
         self.size = size
@@ -65,139 +78,111 @@ public struct HeroLemonIcon: View {
 
     public var body: some View {
         ZStack {
-            // 1. 弥散呼吸光晕
+            // 1. 金黄弥散漫反射微光 (极具质感的大范围柔和环境光)
             Circle()
                 .fill(
                     RadialGradient(
                         gradient: Gradient(colors: [
-                            Color(red: 1.0, green: 0.85, blue: 0.2).opacity(0.28),
-                            Color(red: 1.0, green: 0.75, blue: 0.1).opacity(0.10),
+                            Color(red: 1.0, green: 0.85, blue: 0.20).opacity(0.35),
+                            Color(red: 0.98, green: 0.70, blue: 0.10).opacity(0.12),
                             Color.clear
                         ]),
                         center: .center,
-                        startRadius: size * 0.2,
-                        endRadius: size * 0.75
+                        startRadius: size * 0.15,
+                        endRadius: size * 0.70
                     )
                 )
-                .frame(width: size * 1.6, height: size * 1.6)
-                .scaleEffect(breathing ? 1.08 : 0.95)
-                .animation(Animation.easeInOut(duration: 2.8).repeatForever(autoreverses: true), value: breathing)
+                .frame(width: size * 1.5, height: size * 1.5)
+                .scaleEffect(pulse ? 1.05 : 0.95)
+                .animation(Animation.easeInOut(duration: 2.4).repeatForever(autoreverses: true), value: pulse)
 
-            // 2. 柠檬主体与光影
-            ZStack {
-                // 柠檬本体图形
-                LemonShape()
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color(red: 1.0, green: 0.93, blue: 0.38), // 亮柠檬黄
-                                Color(red: 0.98, green: 0.82, blue: 0.18), // 中调柠黄
-                                Color(red: 0.88, green: 0.65, blue: 0.10)  // 金黄底调阴影
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: size * 0.85, height: size * 0.72)
-                    .rotationEffect(.degrees(-20))
-                    .shadow(color: Color.black.opacity(0.25), radius: 10, x: 2, y: 6)
-
-                // 柠檬高光斑 (左上方立体光泽)
-                Ellipse()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.white.opacity(0.55), Color.white.opacity(0.0)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: size * 0.42, height: size * 0.24)
-                    .rotationEffect(.degrees(-28))
-                    .offset(x: -size * 0.10, y: -size * 0.10)
-
-                // 3. 顶部青绿立体嫩叶 (叶柄 + 叶片)
-                ZStack {
-                    // 叶片
-                    LeafShape()
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    Color(red: 0.35, green: 0.82, blue: 0.38),
-                                    Color(red: 0.18, green: 0.65, blue: 0.24)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: size * 0.38, height: size * 0.28)
-                        .rotationEffect(.degrees(-15))
-                        .offset(x: -size * 0.12, y: -size * 0.34)
-                        .shadow(color: Color.black.opacity(0.18), radius: 3, x: 1, y: 2)
-
-                    // 叶片高光叶脉
-                    Path { path in
-                        path.move(to: CGPoint(x: size * 0.05, y: size * 0.15))
-                        path.addQuadCurve(to: CGPoint(x: size * 0.32, y: size * 0.02), control: CGPoint(x: size * 0.18, y: size * 0.06))
-                    }
-                    .stroke(Color.white.opacity(0.35), lineWidth: 1.5)
-                    .offset(x: -size * 0.14, y: -size * 0.36)
-                }
-            }
+            // 2. 原生 Apple 🍋 Emoji 经典 3D 渲染 (最高画质原生矢量字体输出)
+            Text("🍋")
+                .font(.custom("Apple Color Emoji", size: size * 0.78))
+                .shadow(color: Color.black.opacity(0.32), radius: size * 0.10, x: 0, y: size * 0.05)
+                .scaleEffect(pulse ? 1.02 : 0.98)
+                .animation(Animation.easeInOut(duration: 2.4).repeatForever(autoreverses: true), value: pulse)
         }
         .frame(width: size, height: size)
         .onAppear {
-            breathing = true
+            pulse = true
         }
     }
 }
 
-// 拟物柠檬轮廓 Shape
-fileprivate struct LemonShape: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let w = rect.width
-        let h = rect.height
-        let cx = w / 2
-        let cy = h / 2
+// MARK: - 3. 官方 macOS 拟态 AppIcon 卡片组件 (可用于关于页或主面板展示)
+public struct AppIconSquircleView: View {
+    public var size: CGFloat = 120
 
-        // 左尖端
-        path.move(to: CGPoint(x: 0, y: cy))
+    public init(size: CGFloat = 120) {
+        self.size = size
+    }
 
-        // 上半圆弧
-        path.addCurve(
-            to: CGPoint(x: w, y: cy),
-            control1: CGPoint(x: cx * 0.35, y: -h * 0.08),
-            control2: CGPoint(x: cx * 1.65, y: -h * 0.08)
-        )
+    public var body: some View {
+        let tileSide = size * 0.80
+        let cornerRadius = tileSide * (185.0 / 824.0)
 
-        // 下半圆弧
-        path.addCurve(
-            to: CGPoint(x: 0, y: cy),
-            control1: CGPoint(x: cx * 1.65, y: h * 1.08),
-            control2: CGPoint(x: cx * 0.35, y: h * 1.08)
-        )
+        ZStack {
+            // 底部柔和投影
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .fill(Color.black.opacity(0.35))
+                .frame(width: tileSide, height: tileSide)
+                .blur(radius: tileSide * 0.08)
+                .offset(y: tileSide * 0.04)
 
-        path.closeSubpath()
-        return path
+            // 实体卡片
+            ZStack {
+                // 深黑石墨背景
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.17, green: 0.18, blue: 0.21),
+                        Color(red: 0.09, green: 0.10, blue: 0.12)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+
+                // 弥散金黄柠檬光晕
+                RadialGradient(
+                    gradient: Gradient(colors: [
+                        Color(red: 1.0, green: 0.82, blue: 0.18).opacity(0.38),
+                        Color(red: 0.98, green: 0.65, blue: 0.08).opacity(0.14),
+                        Color.clear
+                    ]),
+                    center: UnitPoint(x: 0.52, y: 0.52),
+                    startRadius: tileSide * 0.08,
+                    endRadius: tileSide * 0.50
+                )
+
+                // 边缘高光微轮廓
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(
+                        LinearGradient(
+                            stops: [
+                                .init(color: Color.white.opacity(0.24), location: 0.0),
+                                .init(color: Color.white.opacity(0.08), location: 0.4),
+                                .init(color: Color.white.opacity(0.02), location: 1.0)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ),
+                        lineWidth: 1.5
+                    )
+
+                // 经典 Apple 柠檬
+                Text("🍋")
+                    .font(.custom("Apple Color Emoji", size: tileSide * 0.67))
+                    .shadow(color: Color.black.opacity(0.50), radius: tileSide * 0.04, x: 0, y: tileSide * 0.02)
+                    .offset(x: tileSide * 0.015, y: tileSide * 0.01)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .frame(width: tileSide, height: tileSide)
+        }
+        .frame(width: size, height: size)
     }
 }
 
-// 嫩叶 Shape
-fileprivate struct LeafShape: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let w = rect.width
-        let h = rect.height
-
-        path.move(to: CGPoint(x: 0, y: h * 0.8))
-        path.addQuadCurve(to: CGPoint(x: w, y: 0), control: CGPoint(x: w * 0.2, y: -h * 0.1))
-        path.addQuadCurve(to: CGPoint(x: 0, y: h * 0.8), control: CGPoint(x: w * 0.85, y: h * 0.9))
-        path.closeSubpath()
-        return path
-    }
-}
-
-// MARK: - 3. 腾讯柠檬同款：上下双行极致紧凑微指标卡片
+// MARK: - 4. 腾讯柠檬同款：上下双行极致紧凑微指标卡片
 public struct CompactMetricBlock: View {
     public let val: String
     public let label: String

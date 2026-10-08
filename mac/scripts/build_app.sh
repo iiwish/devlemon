@@ -32,6 +32,15 @@ cp "${REPO_DIR}/devlemon" "${APP_BUNDLE}/Contents/Resources/devlemon"
 chmod +x "${APP_BUNDLE}/Contents/MacOS/DevLemon"
 chmod +x "${APP_BUNDLE}/Contents/Resources/devlemon"
 
+# 复制 AppIcon.icns
+if [[ ! -f "${MAC_DIR}/Resources/AppIcon.icns" ]]; then
+    echo "🎨 Generating AppIcon.icns..."
+    swift "${MAC_DIR}/scripts/generate_app_icon.swift"
+fi
+if [[ -f "${MAC_DIR}/Resources/AppIcon.icns" ]]; then
+    cp "${MAC_DIR}/Resources/AppIcon.icns" "${APP_BUNDLE}/Contents/Resources/AppIcon.icns"
+fi
+
 echo "📝 [4/5] Generating Info.plist..."
 cat << 'EOF' > "${APP_BUNDLE}/Contents/Info.plist"
 <?xml version="1.0" encoding="UTF-8"?>
@@ -52,6 +61,8 @@ cat << 'EOF' > "${APP_BUNDLE}/Contents/Info.plist"
     <string>0.2.4</string>
     <key>CFBundleExecutable</key>
     <string>DevLemon</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>LSMinimumSystemVersion</key>
     <string>13.0</string>
     <key>NSHighResolutionCapable</key>
