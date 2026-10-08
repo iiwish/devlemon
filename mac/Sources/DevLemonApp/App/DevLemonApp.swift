@@ -32,15 +32,7 @@ public final class WindowManager: ObservableObject {
     }
 
     public func showSettingsWindow() {
-        NSApplication.shared.activate(ignoringOtherApps: true)
-        if let window = NSApplication.shared.windows.first(where: {
-            let title = $0.title
-            return title.contains("偏好设置") || title.contains("Settings")
-        }) {
-            window.makeKeyAndOrderFront(nil)
-        } else {
-            openSettingsAction?()
-        }
+        SettingsWindowController.shared.show()
     }
 }
 

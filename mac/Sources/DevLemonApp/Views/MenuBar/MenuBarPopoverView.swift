@@ -25,10 +25,10 @@ public struct MenuBarPopoverView: View {
 
                 HStack(spacing: 8) {
                     Button {
-                        WindowManager.shared.showSettingsWindow()
+                        SettingsWindowController.shared.show()
                     } label: {
                         Image(systemName: "gearshape")
-                            .font(.system(size: 12))
+                            .font(.system(size: 13))
                             .foregroundColor(.secondary)
                     }
                     .buttonStyle(.plain)

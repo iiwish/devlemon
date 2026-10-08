@@ -116,7 +116,7 @@ public struct MainWindowView: View {
 
             // 右侧设置小图标
             Button {
-                WindowManager.shared.showSettingsWindow()
+                SettingsWindowController.shared.show()
             } label: {
                 Image(systemName: "gearshape")
                     .font(.system(size: 12))
