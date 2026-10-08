@@ -52,6 +52,9 @@ public final class AppSettings: ObservableObject {
     private func triggerUpdate() {
         menuBarUpdateId = UUID()
         objectWillChange.send()
+        Task { @MainActor in
+            MenuBarImageProvider.shared.regenerateImage()
+        }
     }
 
     private init() {

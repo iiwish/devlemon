@@ -73,6 +73,10 @@ public final class SystemMonitor: ObservableObject {
         updateMemory()
         updateDisk()
         updateNetwork(interval: interval)
+
+        Task { @MainActor in
+            MenuBarImageProvider.shared.regenerateImage()
+        }
     }
 
     // MARK: - CPU Usage

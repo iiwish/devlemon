@@ -196,3 +196,57 @@ fileprivate struct LeafShape: Shape {
         return path
     }
 }
+
+// MARK: - 3. 腾讯柠檬同款：上下双行极致紧凑微指标卡片
+public struct CompactMetricBlock: View {
+    public let val: String
+    public let label: String
+
+    public init(val: String, label: String) {
+        self.val = val
+        self.label = label
+    }
+
+    public var body: some View {
+        VStack(alignment: .center, spacing: -2.5) {
+            Text(val)
+                .font(.system(size: 9, weight: .bold, design: .rounded))
+                .lineLimit(1)
+            Text(label)
+                .font(.system(size: 6.5, weight: .bold, design: .rounded))
+                .opacity(0.85)
+                .lineLimit(1)
+        }
+        .frame(minWidth: 20)
+    }
+}
+
+// 紧凑双行网速
+public struct CompactNetBlock: View {
+    public let upSpeed: String
+    public let downSpeed: String
+
+    public init(upSpeed: String, downSpeed: String) {
+        self.upSpeed = upSpeed
+        self.downSpeed = downSpeed
+    }
+
+    public var body: some View {
+        VStack(alignment: .leading, spacing: -2) {
+            HStack(spacing: 1.5) {
+                Image(systemName: "arrow.up")
+                    .font(.system(size: 6, weight: .bold))
+                Text(upSpeed)
+                    .font(.system(size: 7.5, weight: .medium, design: .monospaced))
+                    .lineLimit(1)
+            }
+            HStack(spacing: 1.5) {
+                Image(systemName: "arrow.down")
+                    .font(.system(size: 6, weight: .bold))
+                Text(downSpeed)
+                    .font(.system(size: 7.5, weight: .medium, design: .monospaced))
+                    .lineLimit(1)
+            }
+        }
+    }
+}
