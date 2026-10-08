@@ -39,7 +39,7 @@ public struct MenuBarCompositeContent: View {
     }
 
     public var body: some View {
-        HStack(alignment: .center, spacing: 5) {
+        HStack(alignment: .center, spacing: 6) {
             // 1. 单色 Logo (允许关闭)
             if settings.showLogo || isAllDisabled {
                 MonochromeLemonIcon(size: 13)
@@ -49,20 +49,10 @@ public struct MenuBarCompositeContent: View {
 
             // 2. 实时上下行网速 (双行紧凑)
             if settings.showNetwork {
-                VStack(alignment: .leading, spacing: -2) {
-                    HStack(spacing: 1.5) {
-                        Image(systemName: "arrow.up")
-                            .font(.system(size: 6, weight: .bold))
-                        Text(monitor.uploadSpeedShort)
-                            .font(.system(size: 7.5, weight: .medium, design: .monospaced))
-                    }
-                    HStack(spacing: 1.5) {
-                        Image(systemName: "arrow.down")
-                            .font(.system(size: 6, weight: .bold))
-                        Text(monitor.downloadSpeedShort)
-                            .font(.system(size: 7.5, weight: .medium, design: .monospaced))
-                    }
-                }
+                CompactNetBlock(
+                    upSpeed: monitor.uploadSpeedShort,
+                    downSpeed: monitor.downloadSpeedShort
+                )
                 .foregroundColor(.black)
                 .frame(height: 18)
             }

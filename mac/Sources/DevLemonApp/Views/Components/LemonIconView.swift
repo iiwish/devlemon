@@ -182,7 +182,7 @@ public struct AppIconSquircleView: View {
     }
 }
 
-// MARK: - 4. 腾讯柠檬同款：上下双行极致紧凑微指标卡片
+// MARK: - 4. 腾讯柠檬同款：上下双行紧凑微指标卡片 (字号与字重完全对齐柠檬清理规范)
 public struct CompactMetricBlock: View {
     public let val: String
     public let label: String
@@ -193,16 +193,17 @@ public struct CompactMetricBlock: View {
     }
 
     public var body: some View {
-        VStack(alignment: .center, spacing: -2.5) {
+        VStack(alignment: .center, spacing: -1.5) {
             Text(val)
-                .font(.system(size: 9, weight: .bold, design: .rounded))
+                .font(.system(size: 11, weight: .bold))
                 .lineLimit(1)
+                .fixedSize()
             Text(label)
-                .font(.system(size: 6.5, weight: .bold, design: .rounded))
+                .font(.system(size: 7.5, weight: .bold))
                 .opacity(0.85)
                 .lineLimit(1)
+                .fixedSize()
         }
-        .frame(minWidth: 20)
     }
 }
 
@@ -217,20 +218,22 @@ public struct CompactNetBlock: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: -2) {
-            HStack(spacing: 1.5) {
+        VStack(alignment: .leading, spacing: -1.5) {
+            HStack(spacing: 2) {
                 Image(systemName: "arrow.up")
-                    .font(.system(size: 6, weight: .bold))
+                    .font(.system(size: 7, weight: .bold))
                 Text(upSpeed)
-                    .font(.system(size: 7.5, weight: .medium, design: .monospaced))
+                    .font(.system(size: 8, weight: .semibold, design: .monospaced))
                     .lineLimit(1)
+                    .fixedSize()
             }
-            HStack(spacing: 1.5) {
+            HStack(spacing: 2) {
                 Image(systemName: "arrow.down")
-                    .font(.system(size: 6, weight: .bold))
+                    .font(.system(size: 7, weight: .bold))
                 Text(downSpeed)
-                    .font(.system(size: 7.5, weight: .medium, design: .monospaced))
+                    .font(.system(size: 8, weight: .semibold, design: .monospaced))
                     .lineLimit(1)
+                    .fixedSize()
             }
         }
     }
