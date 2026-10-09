@@ -64,6 +64,16 @@ func (e *Engine) Scan(ctx context.Context) (*model.ScanReport, error) {
 			}
 		}
 
+		// 沙盒合规模式 (Mac App Store)：严格隔离，跳过无权限的底层 Docker 容器与未显式授权的工作区
+		if e.cfg != nil && e.cfg.SandboxMode {
+			if p.Category() == model.CategoryDocker {
+				continue
+			}
+			if p.Category() == model.CategoryWorkspaceBuild && len(e.cfg.WorkspacePaths) == 0 {
+				continue
+			}
+		}
+
 		wg.Add(1)
 		go func(pr probe.Probe) {
 			defer wg.Done()

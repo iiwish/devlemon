@@ -106,6 +106,7 @@ func handleScan(args []string) {
 	fs := flag.NewFlagSet("scan", flag.ExitOnError)
 	jsonMode := fs.Bool("json", false, "输出 JSON 格式")
 	safeOnly := fs.Bool("safe", false, "仅扫描绝对安全项")
+	sandboxMode := fs.Bool("sandbox", false, "启用沙盒兼容模式 (适配 Mac App Store 规范)")
 	var workspaces string
 	fs.StringVar(&workspaces, "workspace", "", "指定扫描的工作区根目录 (多个目录用逗号隔开)")
 
@@ -113,6 +114,9 @@ func handleScan(args []string) {
 
 	cfg := config.DefaultConfig()
 	cfg.SafeOnly = *safeOnly
+	if *sandboxMode {
+		cfg.SandboxMode = true
+	}
 	if workspaces != "" {
 		for _, w := range strings.Split(workspaces, ",") {
 			cfg.AddWorkspacePath(strings.TrimSpace(w))
@@ -142,6 +146,7 @@ func handleClean(args []string) {
 	safeOnly := fs.Bool("safe", false, "仅清理 100% 绝对安全项")
 	dryRun := fs.Bool("dry-run", false, "仅模拟演练，不真正删除")
 	jsonMode := fs.Bool("json", false, "输出 JSON 格式")
+	sandboxMode := fs.Bool("sandbox", false, "启用沙盒兼容模式 (适配 Mac App Store 规范)")
 	var itemsFilter string
 	fs.StringVar(&itemsFilter, "items", "", "指定要清理的 Item ID 列表 (英文逗号隔开)")
 	var workspaces string
@@ -151,6 +156,9 @@ func handleClean(args []string) {
 
 	cfg := config.DefaultConfig()
 	cfg.SafeOnly = *safeOnly
+	if *sandboxMode {
+		cfg.SandboxMode = true
+	}
 	if workspaces != "" {
 		for _, w := range strings.Split(workspaces, ",") {
 			cfg.AddWorkspacePath(strings.TrimSpace(w))

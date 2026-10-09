@@ -92,13 +92,25 @@ public final class CLIBridge: @unchecked Sendable {
             throw CLIBridgeError.binaryNotFound
         }
 
+        let isSandboxed = SecurityBookmarkManager.shared.isSandboxed
+        var targetWorkspaces = workspaces
+        if isSandboxed && targetWorkspaces.isEmpty {
+            targetWorkspaces = SecurityBookmarkManager.shared.authorizedWorkspaces
+        }
+
         var arguments = ["scan", "--json"]
+        if isSandboxed {
+            arguments.append("--sandbox")
+        }
         if safeOnly {
             arguments.append("--safe")
         }
-        if !workspaces.isEmpty {
-            arguments.append(contentsOf: ["--workspace", workspaces.joined(separator: ",")])
+        if !targetWorkspaces.isEmpty {
+            arguments.append(contentsOf: ["--workspace", targetWorkspaces.joined(separator: ",")])
         }
+
+        SecurityBookmarkManager.shared.startAccessing()
+        defer { SecurityBookmarkManager.shared.stopAccessing() }
 
         let outputData = try await runProcess(binaryPath: binaryPath, arguments: arguments)
         do {
@@ -119,7 +131,15 @@ public final class CLIBridge: @unchecked Sendable {
             throw CLIBridgeError.binaryNotFound
         }
 
+        let isSandboxed = SecurityBookmarkManager.shared.isSandboxed
         var arguments = ["clean", "--json"]
+        if isSandboxed {
+            arguments.append("--sandbox")
+            let ws = SecurityBookmarkManager.shared.authorizedWorkspaces
+            if !ws.isEmpty {
+                arguments.append(contentsOf: ["--workspace", ws.joined(separator: ",")])
+            }
+        }
         if let items = items, !items.isEmpty {
             arguments.append(contentsOf: ["--items", items.joined(separator: ",")])
         } else if safeOnly {
@@ -129,6 +149,9 @@ public final class CLIBridge: @unchecked Sendable {
         if dryRun {
             arguments.append("--dry-run")
         }
+
+        SecurityBookmarkManager.shared.startAccessing()
+        defer { SecurityBookmarkManager.shared.stopAccessing() }
 
         let outputData = try await runProcess(binaryPath: binaryPath, arguments: arguments)
         do {

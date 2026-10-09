@@ -1,13 +1,26 @@
 import Foundation
 import AppKit
 
-// MARK: - 安全作用域书签管理器 (Mac App Store 沙盒授权核心机制)
+// MARK: - 安全作用域书签管理器 (对标腾讯柠檬清理 Lite，Mac App Store 严苛沙盒规范)
 public final class SecurityBookmarkManager: ObservableObject {
     public static let shared = SecurityBookmarkManager()
 
-    private let bookmarkKey = "DevLemonAuthorizedHomeFolderBookmark"
-    private var activeSecurityScopedURL: URL?
+    // 缓存文件夹书签存储 Key (针对 ~/Library/Caches，精准合规)
+    private let cachesBookmarkKey = "DevLemonAuthorizedCachesFolderBookmark"
+    // 用户显式添加的代码工作区工程书签字典 [Path: BookmarkData]
+    private let workspacesBookmarkKey = "DevLemonAuthorizedWorkspaceBookmarks"
 
+    // 活跃的安全作用域 URLs 集合
+    private var activeSecurityScopedURLs: [URL] = []
+
+    // 缓存目录授权状态
+    @Published public var hasCachesAuthorization: Bool = false
+    @Published public var authorizedCachesPath: String = ""
+
+    // 用户已授权的项目工作区路径列表
+    @Published public var authorizedWorkspaces: [String] = []
+
+    // 兼容历史属性
     @Published public var hasAuthorization: Bool = false
     @Published public var authorizedPath: String = ""
 
@@ -24,6 +37,11 @@ public final class SecurityBookmarkManager: ObservableObject {
         return FileManager.default.homeDirectoryForCurrentUser
     }
 
+    /// 获取系统真实的 ~/Library/Caches 路径
+    public var realCachesURL: URL {
+        return realHomeURL.appendingPathComponent("Library/Caches")
+    }
+
     private init() {
         checkAuthorization()
     }
@@ -32,64 +50,70 @@ public final class SecurityBookmarkManager: ObservableObject {
     public func checkAuthorization() {
         // 非沙盒环境（如 GitHub 直装版）默认拥有完整用户空间访问权限
         guard isSandboxed else {
+            self.hasCachesAuthorization = true
+            self.authorizedCachesPath = realCachesURL.path
             self.hasAuthorization = true
             self.authorizedPath = realHomeURL.path
             return
         }
 
-        guard let bookmarkData = UserDefaults.standard.data(forKey: bookmarkKey) else {
+        // 1. 恢复缓存目录书签
+        if let data = UserDefaults.standard.data(forKey: cachesBookmarkKey) {
+            var isStale = false
+            if let url = try? URL(resolvingBookmarkData: data, options: .withSecurityScope, relativeTo: nil, bookmarkDataIsStale: &isStale) {
+                if isStale, let fresh = try? url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil) {
+                    UserDefaults.standard.set(fresh, forKey: cachesBookmarkKey)
+                }
+                self.hasCachesAuthorization = true
+                self.authorizedCachesPath = url.path
+                self.hasAuthorization = true
+                self.authorizedPath = url.path
+            } else {
+                self.hasCachesAuthorization = false
+                self.authorizedCachesPath = ""
+            }
+        } else {
+            self.hasCachesAuthorization = false
+            self.authorizedCachesPath = ""
             self.hasAuthorization = false
             self.authorizedPath = ""
-            return
         }
 
-        var isStale = false
-        do {
-            let url = try URL(
-                resolvingBookmarkData: bookmarkData,
-                options: .withSecurityScope,
-                relativeTo: nil,
-                bookmarkDataIsStale: &isStale
-            )
-
-            if isStale {
-                // 书签数据陈旧，尝试更新
-                if let newBookmark = try? url.bookmarkData(
-                    options: .withSecurityScope,
-                    includingResourceValuesForKeys: nil,
-                    relativeTo: nil
-                ) {
-                    UserDefaults.standard.set(newBookmark, forKey: bookmarkKey)
+        // 2. 恢复工作区工程书签列表
+        if let dict = UserDefaults.standard.dictionary(forKey: workspacesBookmarkKey) as? [String: Data] {
+            var validPaths: [String] = []
+            for (path, data) in dict {
+                var isStale = false
+                if let url = try? URL(resolvingBookmarkData: data, options: .withSecurityScope, relativeTo: nil, bookmarkDataIsStale: &isStale) {
+                    validPaths.append(url.path)
+                } else {
+                    validPaths.append(path)
                 }
             }
-
-            self.hasAuthorization = true
-            self.authorizedPath = url.path
-        } catch {
-            print("⚠️ 解析安全作用域书签失败: \(error)")
-            self.hasAuthorization = false
-            self.authorizedPath = ""
+            self.authorizedWorkspaces = validPaths
+        } else {
+            self.authorizedWorkspaces = []
         }
     }
 
-    /// 请求用户选取主文件夹以获得沙盒穿透授权
-    public func requestAuthorization(completion: @escaping (Bool) -> Void) {
+    /// 请求用户授权公共缓存目录 ~/Library/Caches (符合 Apple 最小必要权限原则)
+    public func requestCachesAuthorization(completion: @escaping (Bool) -> Void) {
         guard isSandboxed else {
-            self.hasAuthorization = true
+            self.hasCachesAuthorization = true
             completion(true)
             return
         }
 
         DispatchQueue.main.async {
             let panel = NSOpenPanel()
-            panel.title = "授权访问个人主目录"
-            panel.message = "为合规扫描并释放项目缓存（如 node_modules、构建缓存等），请授权 DevLemon 访问您的个人主文件夹。"
-            panel.prompt = "授权访问"
+            panel.title = "授权访问缓存文件夹"
+            panel.message = "为合规扫描并释放 Google Chrome、Safari、日常开发工具等临时网络与渲染缓存，请授权 DevLemon 访问缓存文件夹 (Library/Caches)。"
+            panel.prompt = "授权缓存目录"
             panel.canChooseFiles = false
             panel.canChooseDirectories = true
             panel.canCreateDirectories = false
             panel.allowsMultipleSelection = false
-            panel.directoryURL = self.realHomeURL
+            panel.directoryURL = self.realCachesURL
 
             panel.begin { response in
                 if response == .OK, let selectedURL = panel.url {
@@ -99,13 +123,15 @@ public final class SecurityBookmarkManager: ObservableObject {
                             includingResourceValuesForKeys: nil,
                             relativeTo: nil
                         )
-                        UserDefaults.standard.set(bookmarkData, forKey: self.bookmarkKey)
+                        UserDefaults.standard.set(bookmarkData, forKey: self.cachesBookmarkKey)
+                        self.hasCachesAuthorization = true
+                        self.authorizedCachesPath = selectedURL.path
                         self.hasAuthorization = true
                         self.authorizedPath = selectedURL.path
-                        print("✅ 成功获取并持久化安全作用域书签: \(selectedURL.path)")
+                        print("✅ 成功获取并持久化缓存目录书签: \(selectedURL.path)")
                         completion(true)
                     } catch {
-                        print("❌ 创建安全作用域书签失败: \(error)")
+                        print("❌ 创建缓存目录书签失败: \(error)")
                         completion(false)
                     }
                 } else {
@@ -115,38 +141,103 @@ public final class SecurityBookmarkManager: ObservableObject {
         }
     }
 
-    /// 开始使用安全作用域资源（在扫描与清理执行前调用）
+    /// 请求用户添加特定代码工作区工程目录
+    public func requestAddWorkspace(completion: @escaping (Bool) -> Void) {
+        guard isSandboxed else {
+            completion(true)
+            return
+        }
+
+        DispatchQueue.main.async {
+            let panel = NSOpenPanel()
+            panel.title = "添加代码工程工作区"
+            panel.message = "选取您希望扫描并清理依赖或构建产物 (node_modules, target, .build) 的项目文件夹："
+            panel.prompt = "添加项目"
+            panel.canChooseFiles = false
+            panel.canChooseDirectories = true
+            panel.canCreateDirectories = false
+            panel.allowsMultipleSelection = true
+            panel.directoryURL = self.realHomeURL
+
+            panel.begin { response in
+                if response == .OK && !panel.urls.isEmpty {
+                    var dict = UserDefaults.standard.dictionary(forKey: self.workspacesBookmarkKey) as? [String: Data] ?? [:]
+                    for url in panel.urls {
+                        if let bookmark = try? url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil) {
+                            dict[url.path] = bookmark
+                        }
+                    }
+                    UserDefaults.standard.set(dict, forKey: self.workspacesBookmarkKey)
+                    self.checkAuthorization()
+                    completion(true)
+                } else {
+                    completion(false)
+                }
+            }
+        }
+    }
+
+    /// 移除指定工程目录授权
+    public func removeWorkspace(path: String) {
+        var dict = UserDefaults.standard.dictionary(forKey: workspacesBookmarkKey) as? [String: Data] ?? [:]
+        dict.removeValue(forKey: path)
+        UserDefaults.standard.set(dict, forKey: workspacesBookmarkKey)
+        checkAuthorization()
+    }
+
+    /// 兼容旧方法
+    public func requestAuthorization(completion: @escaping (Bool) -> Void) {
+        requestCachesAuthorization(completion: completion)
+    }
+
+    /// 开始使用全部已授权的安全作用域资源（在扫描与清理执行前调用）
     @discardableResult
     public func startAccessing() -> Bool {
         guard isSandboxed else { return true }
-        guard let bookmarkData = UserDefaults.standard.data(forKey: bookmarkKey) else { return false }
 
-        var isStale = false
-        guard let url = try? URL(
-            resolvingBookmarkData: bookmarkData,
-            options: .withSecurityScope,
-            relativeTo: nil,
-            bookmarkDataIsStale: &isStale
-        ) else { return false }
+        var successCount = 0
 
-        if url.startAccessingSecurityScopedResource() {
-            self.activeSecurityScopedURL = url
-            return true
+        // 1. 激活 Caches 书签
+        if let data = UserDefaults.standard.data(forKey: cachesBookmarkKey) {
+            var isStale = false
+            if let url = try? URL(resolvingBookmarkData: data, options: .withSecurityScope, relativeTo: nil, bookmarkDataIsStale: &isStale) {
+                if url.startAccessingSecurityScopedResource() {
+                    activeSecurityScopedURLs.append(url)
+                    successCount += 1
+                }
+            }
         }
-        return false
+
+        // 2. 激活 Workspaces 书签
+        if let dict = UserDefaults.standard.dictionary(forKey: workspacesBookmarkKey) as? [String: Data] {
+            for (_, data) in dict {
+                var isStale = false
+                if let url = try? URL(resolvingBookmarkData: data, options: .withSecurityScope, relativeTo: nil, bookmarkDataIsStale: &isStale) {
+                    if url.startAccessingSecurityScopedResource() {
+                        activeSecurityScopedURLs.append(url)
+                        successCount += 1
+                    }
+                }
+            }
+        }
+
+        return successCount > 0
     }
 
-    /// 停止访问安全作用域资源
+    /// 停止访问全部安全作用域资源
     public func stopAccessing() {
         guard isSandboxed else { return }
-        activeSecurityScopedURL?.stopAccessingSecurityScopedResource()
-        activeSecurityScopedURL = nil
+        for url in activeSecurityScopedURLs {
+            url.stopAccessingSecurityScopedResource()
+        }
+        activeSecurityScopedURLs.removeAll()
     }
 
-    /// 清除授权
+    /// 清除全部授权
     public func clearAuthorization() {
         stopAccessing()
-        UserDefaults.standard.removeObject(forKey: bookmarkKey)
+        UserDefaults.standard.removeObject(forKey: cachesBookmarkKey)
+        UserDefaults.standard.removeObject(forKey: workspacesBookmarkKey)
         checkAuthorization()
     }
 }

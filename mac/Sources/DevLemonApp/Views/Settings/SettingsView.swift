@@ -211,80 +211,133 @@ public struct SettingsView: View {
         )
     }
 
-    // MARK: - 3. 沙盒目录授权 (Mac App Store 规范)
+    // MARK: - 3. 沙盒目录授权 (对标腾讯柠檬清理 Lite 规范)
     private var permissionSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("系统目录访问授权")
-                    .font(.system(size: 13.5, weight: .semibold))
-                    .foregroundColor(.primary)
+        VStack(alignment: .leading, spacing: 14) {
+            // 3.1 缓存目录授权 (~/Library/Caches)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("应用与浏览器缓存授权")
+                        .font(.system(size: 13.5, weight: .semibold))
+                        .foregroundColor(.primary)
 
-                Spacer()
+                    Spacer()
 
-                HStack(spacing: 5) {
-                    Circle()
-                        .fill(securityBookmark.hasAuthorization ? Color.green : Color.orange)
-                        .frame(width: 7, height: 7)
-                    Text(securityBookmark.hasAuthorization ? "已获得个人主目录授权" : "未授权")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(securityBookmark.hasAuthorization ? .green : .orange)
+                    HStack(spacing: 5) {
+                        Circle()
+                            .fill(securityBookmark.hasCachesAuthorization ? Color.green : Color.orange)
+                            .frame(width: 7, height: 7)
+                        Text(securityBookmark.hasCachesAuthorization ? "已授权缓存目录" : "未授权")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(securityBookmark.hasCachesAuthorization ? .green : .orange)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.white.opacity(0.06))
+                    .cornerRadius(12)
                 }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(Color.white.opacity(0.06))
-                .cornerRadius(12)
+
+                Text("遵循 Apple 最小权限原则。DevLemon 仅需获得缓存目录 (~/Library/Caches) 授权，即可合规扫描并释放 Google Chrome、Safari、Edge 以及日常软件的网络与渲染垃圾。")
+                    .font(.system(size: 11.5))
+                    .foregroundColor(.secondary)
+
+                HStack {
+                    Text(securityBookmark.hasCachesAuthorization ? securityBookmark.authorizedCachesPath : "未授予缓存目录访问权限 (~/Library/Caches)")
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+
+                    Spacer()
+
+                    Button {
+                        securityBookmark.requestCachesAuthorization { _ in }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "folder.badge.gearshape")
+                                .font(.system(size: 11))
+                            Text(securityBookmark.hasCachesAuthorization ? "重新授权" : "授权缓存目录")
+                                .font(.system(size: 11, weight: .medium))
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(Color.blue.opacity(0.8))
+                        .foregroundColor(.white)
+                        .cornerRadius(6)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(10)
+                .background(Color.black.opacity(0.25))
+                .cornerRadius(6)
             }
 
-            Text("Mac App Store 沙盒版本遵循苹果隐私合规规范。DevLemon 需要获得个人主目录授权，以扫描并释放开发缓存（如 Xcode DerivedData、node_modules、Docker 等）。")
-                .font(.system(size: 11.5))
-                .foregroundColor(.secondary)
+            Divider().opacity(0.15)
 
-            HStack {
-                Text(securityBookmark.hasAuthorization ? securityBookmark.authorizedPath : "未授予主目录访问权限")
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+            // 3.2 自定义代码工程工作区授权 (针对项目依赖瘦身)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("代码工程工作区 (可选)")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.primary)
 
-                Spacer()
+                    Spacer()
 
-                if securityBookmark.hasAuthorization {
-                    Button("重置授权") {
-                        securityBookmark.clearAuthorization()
+                    Button {
+                        securityBookmark.requestAddWorkspace { _ in }
+                    } label: {
+                        HStack(spacing: 3) {
+                            Image(systemName: "plus")
+                                .font(.system(size: 10, weight: .bold))
+                            Text("添加项目文件夹")
+                                .font(.system(size: 11, weight: .medium))
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.white.opacity(0.12))
+                        .cornerRadius(5)
                     }
+                    .buttonStyle(.plain)
+                }
+
+                Text("在沙盒环境下，若需清理特定项目工程的 node_modules、target 或 .build 产物，可主动添加项目目录授权。")
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
-                    .buttonStyle(.plain)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.white.opacity(0.08))
-                    .cornerRadius(5)
-                }
 
-                Button {
-                    securityBookmark.requestAuthorization { granted in
-                        if granted {
-                            cliInstaller.autoInstallIfNeeded()
+                if securityBookmark.authorizedWorkspaces.isEmpty {
+                    Text("暂未添加独立工程目录 (仅扫描公共缓存)")
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(.secondary.opacity(0.7))
+                        .padding(.vertical, 4)
+                } else {
+                    VStack(spacing: 4) {
+                        ForEach(securityBookmark.authorizedWorkspaces, id: \.self) { path in
+                            HStack {
+                                Image(systemName: "folder.fill")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.yellow)
+                                Text(path)
+                                    .font(.system(size: 11, design: .monospaced))
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                Spacer()
+                                Button {
+                                    securityBookmark.removeWorkspace(path: path)
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.secondary)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.white.opacity(0.04))
+                            .cornerRadius(4)
                         }
                     }
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "folder.badge.gearshape")
-                            .font(.system(size: 11))
-                        Text(securityBookmark.hasAuthorization ? "更改授权" : "立即授权个人主目录")
-                            .font(.system(size: 11, weight: .medium))
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(Color.blue.opacity(0.8))
-                    .foregroundColor(.white)
-                    .cornerRadius(6)
                 }
-                .buttonStyle(.plain)
             }
-            .padding(10)
-            .background(Color.black.opacity(0.25))
-            .cornerRadius(6)
         }
         .padding(14)
         .background(
