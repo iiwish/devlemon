@@ -29,6 +29,7 @@ public enum ItemCategory: String, Codable, CaseIterable {
     case packageCache = "package_cache"
     case workspaceBuild = "workspace_build"
     case systemCache = "system_cache"
+    case appCache = "app_cache"
     case aiCache = "ai_cache"
 
     public var displayName: String {
@@ -38,6 +39,7 @@ public enum ItemCategory: String, Codable, CaseIterable {
         case .packageCache: return "包管理缓存"
         case .workspaceBuild: return "项目构建产物"
         case .systemCache: return "系统维护垃圾"
+        case .appCache: return "应用垃圾与缓存"
         case .aiCache: return "AI 模型与工具"
         }
     }
@@ -49,6 +51,7 @@ public enum ItemCategory: String, Codable, CaseIterable {
         case .packageCache: return "shippingbox"
         case .workspaceBuild: return "hammer.fill"
         case .systemCache: return "trash.fill"
+        case .appCache: return "square.grid.2x2.fill"
         case .aiCache: return "brain.head.profile"
         }
     }

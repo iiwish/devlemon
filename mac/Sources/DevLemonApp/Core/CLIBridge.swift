@@ -4,6 +4,7 @@ public enum CLIBridgeError: LocalizedError {
     case binaryNotFound
     case executionFailed(String)
     case decodingFailed(Error)
+    case cancelled
 
     public var errorDescription: String? {
         switch self {
@@ -13,32 +14,60 @@ public enum CLIBridgeError: LocalizedError {
             return "执行核心引擎命令失败: \(msg)"
         case .decodingFailed(let err):
             return "解析数据失败: \(err.localizedDescription)"
+        case .cancelled:
+            return "操作已由用户手动停止"
         }
     }
 }
 
-public final class CLIBridge {
+public final class CLIBridge: @unchecked Sendable {
     public static let shared = CLIBridge()
+
+    private var activeProcess: Process?
+    private let processLock = NSLock()
 
     private init() {}
 
+    /// 取消当前正在执行的进程任务
+    public func cancelActiveOperation() {
+        processLock.lock()
+        defer { processLock.unlock() }
+        if let proc = activeProcess, proc.isRunning {
+            proc.terminate()
+        }
+        activeProcess = nil
+    }
+
     /// 寻找 devlemon 引擎可执行文件的绝对路径
     public func resolveBinaryPath() -> String? {
-        // 1. App Bundle Resources
+        // 1. App Bundle Contents/MacOS 或 Contents/Helpers (符合 Apple App Store 规范)
+        if let execURL = Bundle.main.executableURL {
+            let macosDir = execURL.deletingLastPathComponent()
+            let helperInMacOS = macosDir.appendingPathComponent("devlemon").path
+            if FileManager.default.isExecutableFile(atPath: helperInMacOS) {
+                return helperInMacOS
+            }
+            let helpersDir = macosDir.deletingLastPathComponent().appendingPathComponent("Helpers")
+            let helperInHelpers = helpersDir.appendingPathComponent("devlemon").path
+            if FileManager.default.isExecutableFile(atPath: helperInHelpers) {
+                return helperInHelpers
+            }
+        }
+
+        // 2. App Bundle Resources
         if let bundlePath = Bundle.main.path(forResource: "devlemon", ofType: nil) {
             if FileManager.default.isExecutableFile(atPath: bundlePath) {
                 return bundlePath
             }
         }
 
-        // 2. 检查应用同级目录或父级目录（开发运行状态）
-        let candidates = [
-            "/Users/iiwish/self/devlemon/devlemon",
+        // 3. 检查系统标准路径
+        let standardPaths = [
             "/usr/local/bin/devlemon",
             "/opt/homebrew/bin/devlemon"
         ]
 
-        for path in candidates {
+        for path in standardPaths {
             if FileManager.default.isExecutableFile(atPath: path) {
                 return path
             }
@@ -133,19 +162,37 @@ public final class CLIBridge {
                 process.standardOutput = stdoutPipe
                 process.standardError = stderrPipe
 
+                self.processLock.lock()
+                self.activeProcess = process
+                self.processLock.unlock()
+
+                var wasTerminatedByUser = false
+
                 do {
                     try process.run()
                     let data = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
                     let errData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
                     process.waitUntilExit()
 
-                    if process.terminationStatus == 0 {
+                    self.processLock.lock()
+                    if self.activeProcess == nil {
+                        wasTerminatedByUser = true
+                    }
+                    self.activeProcess = nil
+                    self.processLock.unlock()
+
+                    if wasTerminatedByUser {
+                        continuation.resume(throwing: CLIBridgeError.cancelled)
+                    } else if process.terminationStatus == 0 {
                         continuation.resume(returning: data)
                     } else {
                         let errStr = String(data: errData, encoding: .utf8) ?? "Unknown error"
                         continuation.resume(throwing: CLIBridgeError.executionFailed(errStr))
                     }
                 } catch {
+                    self.processLock.lock()
+                    self.activeProcess = nil
+                    self.processLock.unlock()
                     continuation.resume(throwing: CLIBridgeError.executionFailed(error.localizedDescription))
                 }
             }

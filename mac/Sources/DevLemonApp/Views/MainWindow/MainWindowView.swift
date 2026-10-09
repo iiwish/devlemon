@@ -4,6 +4,9 @@ public struct MainWindowView: View {
     @ObservedObject var state = AppState.shared
     @ObservedObject var monitor = SystemMonitor.shared
 
+    @State private var isBackHovered: Bool = false
+    @State private var isSettingsHovered: Bool = false
+
     public init() {}
 
     public var body: some View {
@@ -73,63 +76,101 @@ public struct MainWindowView: View {
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
-        .frame(minWidth: 700, minHeight: 480)
+        .frame(minWidth: 720, minHeight: 480)
     }
 
     // MARK: - 与系统红黄绿处于同一行的统一标题栏
     private var topInlineBar: some View {
-        HStack(spacing: 10) {
-            // 左侧：为系统红黄绿交通灯预留位置 (宽 78pt，完全避让，同行排列)
+        HStack(spacing: 8) {
+            // 左侧：为系统红黄绿交通灯预留位置 (宽 72pt，完全避让，同行排列)
             Color.clear
-                .frame(width: 78, height: 1)
+                .frame(width: 72, height: 1)
 
-            // 返回按钮 (在非首页状态下显示，紧随红黄绿右侧)
-            if state.currentStage != .idle {
+            // 返回按钮 (在非首页且非扫描状态下显示，优雅 macOS 原生胶囊按钮)
+            if state.currentStage != .idle && state.currentStage != .scanning && state.currentStage != .cleaning {
                 Button {
-                    withAnimation(.easeInOut(duration: 0.25)) {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                         state.resetToIdle()
                     }
                 } label: {
-                    HStack(spacing: 3) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 10, weight: .bold))
-                        Text("返回")
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.backward")
+                            .font(.system(size: 10.5, weight: .semibold))
+                        Text("首页")
                             .font(.system(size: 11, weight: .medium))
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3.5)
-                    .background(Color.white.opacity(0.10))
-                    .foregroundColor(.primary)
-                    .cornerRadius(5)
+                    .foregroundColor(isBackHovered ? .primary : .secondary)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 4.5)
+                    .background(
+                        Capsule()
+                            .fill(isBackHovered ? Color.white.opacity(0.12) : Color.white.opacity(0.05))
+                            .overlay(
+                                Capsule()
+                                    .stroke(Color.white.opacity(isBackHovered ? 0.18 : 0.08), lineWidth: 0.8)
+                            )
+                    )
                 }
                 .buttonStyle(.plain)
+                .onHover { isBackHovered = $0 }
+                .help("返回 DevLemon 首页")
                 .transition(.opacity.combined(with: .move(edge: .leading)))
             }
 
             Spacer()
 
-            // 居中单行标题 (与红黄绿同高)
-            Text("DevLemon")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundColor(.secondary.opacity(0.85))
+            // 居中单行标题与状态面包屑
+            HStack(spacing: 5) {
+                Text("DevLemon")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.secondary.opacity(0.9))
+
+                if state.currentStage == .results {
+                    Text("›")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary.opacity(0.5))
+                    Text("扫描结果")
+                        .font(.system(size: 11.5, weight: .medium))
+                        .foregroundColor(.primary.opacity(0.85))
+                } else if state.currentStage == .scanning {
+                    Text("›")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary.opacity(0.5))
+                    Text("雷达扫描")
+                        .font(.system(size: 11.5, weight: .medium))
+                        .foregroundColor(.yellow.opacity(0.9))
+                } else if state.currentStage == .cleaned {
+                    Text("›")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary.opacity(0.5))
+                    Text("清理完成")
+                        .font(.system(size: 11.5, weight: .medium))
+                        .foregroundColor(.green.opacity(0.9))
+                }
+            }
 
             Spacer()
 
-            // 右侧设置小图标
+            // 右侧偏好设置小图标
             Button {
                 SettingsWindowController.shared.show()
             } label: {
                 Image(systemName: "gearshape")
                     .font(.system(size: 12.5))
-                    .foregroundColor(.secondary)
-                    .padding(6)
+                    .foregroundColor(isSettingsHovered ? .primary : .secondary)
+                    .frame(width: 24, height: 24)
+                    .background(
+                        Circle()
+                            .fill(isSettingsHovered ? Color.white.opacity(0.12) : Color.clear)
+                    )
             }
             .buttonStyle(.plain)
+            .onHover { isSettingsHovered = $0 }
             .help("打开偏好设置")
             .padding(.trailing, 12)
         }
-        .frame(height: 32)
-        .padding(.top, 6)
+        .frame(height: 34)
+        .padding(.top, 4)
     }
 
     // MARK: - 就绪首页 (Idle)
@@ -190,19 +231,31 @@ public struct MainWindowView: View {
 
     // MARK: - 清理中视图 (Cleaning)
     private var cleaningView: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 24) {
             Spacer()
-            ProgressView()
-                .scaleEffect(1.4)
-                .progressViewStyle(CircularProgressViewStyle(tint: .yellow))
 
-            Text("正在释放选中的项目与缓存...")
-                .font(.system(size: 15, weight: .medium))
-                .foregroundColor(.primary)
+            ZStack {
+                Circle()
+                    .stroke(Color.yellow.opacity(0.2), lineWidth: 4)
+                    .frame(width: 72, height: 72)
 
-            Text("正在根据规则安全清理，请稍候")
-                .font(.system(size: 12))
-                .foregroundColor(.secondary)
+                ProgressView()
+                    .scaleEffect(1.6)
+                    .progressViewStyle(CircularProgressViewStyle(tint: .yellow))
+
+                HeroLemonIcon(size: 26)
+            }
+
+            VStack(spacing: 8) {
+                Text("正在释放选中的项目与缓存...")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.primary)
+
+                Text("已开启运行态保护机制，安全清理中，请稍候")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+            }
+
             Spacer()
         }
     }

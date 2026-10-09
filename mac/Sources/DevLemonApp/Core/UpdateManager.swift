@@ -43,10 +43,7 @@ public final class UpdateManager: ObservableObject {
         #if !APP_STORE && canImport(Sparkle)
         updaterController?.checkForUpdates(nil)
         #else
-        // 在 App Store 版中打开 App Store 产品页 (预留 MAS URL)
-        if let url = URL(string: "macappstore://apps.apple.com/app/devlemon/id000000000") {
-            NSWorkspace.shared.open(url)
-        }
+        // App Store 版本更新由 macOS 系统商店接管，无需硬编码未上线占位 ID
         #endif
     }
 

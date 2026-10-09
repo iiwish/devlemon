@@ -26,6 +26,7 @@ const (
 	CategoryPackageCache   Category = "package_cache"
 	CategoryWorkspaceBuild Category = "workspace_build"
 	CategorySystemCache    Category = "system_cache"
+	CategoryAppCache       Category = "app_cache"
 	CategoryAIEraCache     Category = "ai_cache"
 )
 

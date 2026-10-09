@@ -32,23 +32,32 @@ public struct NetworkSpeedGraph: View {
             // 动态网速波形图
             ZStack {
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.black.opacity(0.25))
+                    .fill(Color.black.opacity(0.30))
+
+                // 微弱示波器背景网格线
+                VStack(spacing: 0) {
+                    Spacer()
+                    Divider().opacity(0.08)
+                    Spacer()
+                    Divider().opacity(0.08)
+                    Spacer()
+                }
 
                 // 下载波形
                 WaveformShape(points: monitor.downloadHistory)
                     .stroke(
                         LinearGradient(
-                            colors: [.cyan.opacity(0.8), .cyan],
+                            colors: [.cyan.opacity(0.85), .cyan],
                             startPoint: .leading,
                             endPoint: .trailing
                         ),
-                        style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)
+                        style: StrokeStyle(lineWidth: 1.6, lineCap: .round, lineJoin: .round)
                     )
 
                 WaveformShape(points: monitor.downloadHistory, closed: true)
                     .fill(
                         LinearGradient(
-                            colors: [.cyan.opacity(0.2), .clear],
+                            colors: [.cyan.opacity(0.22), .clear],
                             startPoint: .top,
                             endPoint: .bottom
                         )
@@ -58,11 +67,11 @@ public struct NetworkSpeedGraph: View {
                 WaveformShape(points: monitor.uploadHistory)
                     .stroke(
                         LinearGradient(
-                            colors: [.green.opacity(0.8), .green],
+                            colors: [.green.opacity(0.85), .green],
                             startPoint: .leading,
                             endPoint: .trailing
                         ),
-                        style: StrokeStyle(lineWidth: 1.2, lineCap: .round, lineJoin: .round)
+                        style: StrokeStyle(lineWidth: 1.3, lineCap: .round, lineJoin: .round)
                     )
             }
             .frame(height: 48)
@@ -98,9 +107,24 @@ fileprivate struct WaveformShape: Shape {
 
         path.move(to: CGPoint(x: 0, y: scaledY(points[0])))
 
+        // 平滑贝塞尔曲线拟合
         for i in 1..<points.count {
-            let pt = CGPoint(x: CGFloat(i) * stepX, y: scaledY(points[i]))
-            path.addLine(to: pt)
+            let prevX = CGFloat(i - 1) * stepX
+            let prevY = scaledY(points[i - 1])
+            let curX = CGFloat(i) * stepX
+            let curY = scaledY(points[i])
+            let midX = (prevX + curX) / 2
+            let midY = (prevY + curY) / 2
+
+            if i == 1 {
+                path.addLine(to: CGPoint(x: midX, y: midY))
+            } else {
+                path.addQuadCurve(to: CGPoint(x: midX, y: midY), control: CGPoint(x: prevX, y: prevY))
+            }
+
+            if i == points.count - 1 {
+                path.addLine(to: CGPoint(x: curX, y: curY))
+            }
         }
 
         if closed {

@@ -13,8 +13,12 @@ public final class CLIInstaller: ObservableObject {
         checkStatus()
     }
 
-    /// 应用启动时默认自动检测并安装/同步 CLI 软链接
+    /// 应用启动时默认自动检测并安装/同步 CLI 软链接 (非 App Store 直装版启用)
     public func autoInstallIfNeeded() {
+        #if APP_STORE
+        // Mac App Store 规范：严禁沙盒应用启动时向用户 PATH 静默植入软链接
+        return
+        #else
         guard let binaryPath = resolveSourceBinaryPath() else {
             print("⚠️ 未找到应用内置 devlemon 二进制，跳过自动链接")
             return
@@ -73,6 +77,7 @@ public final class CLIInstaller: ObservableObject {
         }
 
         checkStatus()
+        #endif
     }
 
     /// 手动重新安装或修复
@@ -156,21 +161,6 @@ public final class CLIInstaller: ObservableObject {
     }
 
     private func resolveSourceBinaryPath() -> String? {
-        if let bundlePath = Bundle.main.path(forResource: "devlemon", ofType: nil),
-           FileManager.default.isExecutableFile(atPath: bundlePath) {
-            return bundlePath
-        }
-
-        // 开发与调试目录备选
-        let candidates = [
-            "/Users/iiwish/self/devlemon/build/DevLemon.app/Contents/Resources/devlemon",
-            "/Users/iiwish/self/devlemon/devlemon"
-        ]
-        for path in candidates {
-            if FileManager.default.isExecutableFile(atPath: path) {
-                return path
-            }
-        }
-        return nil
+        return CLIBridge.shared.resolveBinaryPath()
     }
 }

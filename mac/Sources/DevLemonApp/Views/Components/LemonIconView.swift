@@ -238,3 +238,81 @@ public struct CompactNetBlock: View {
         }
     }
 }
+
+// MARK: - 正六边形形状
+public struct HexagonShape: Shape {
+    public init() {}
+
+    public func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let width = rect.width
+        let height = rect.height
+        let xCenter = width / 2
+        let yCenter = height / 2
+        let radius = min(width, height) / 2
+
+        for i in 0..<6 {
+            let angle = CGFloat(i) * (CGFloat.pi / 3.0)
+            let x = xCenter + radius * cos(angle)
+            let y = yCenter + radius * sin(angle)
+            if i == 0 {
+                path.move(to: CGPoint(x: x, y: y))
+            } else {
+                path.addLine(to: CGPoint(x: x, y: y))
+            }
+        }
+        path.closeSubpath()
+        return path
+    }
+}
+
+// MARK: - 柠檬科技感六边形微标 (类似腾讯柠檬清理下拉窗顶部徽标)
+public struct HexagonLemonBadge: View {
+    public var size: CGFloat = 40
+
+    public init(size: CGFloat = 40) {
+        self.size = size
+    }
+
+    public var body: some View {
+        ZStack {
+            // 外层微晶六边形
+            HexagonShape()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.98, green: 0.85, blue: 0.25).opacity(0.20),
+                            Color(red: 0.95, green: 0.65, blue: 0.10).opacity(0.08)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: size, height: size)
+                .overlay(
+                    HexagonShape()
+                        .stroke(
+                            LinearGradient(
+                                colors: [
+                                    Color(red: 1.0, green: 0.88, blue: 0.25).opacity(0.85),
+                                    Color(red: 0.95, green: 0.65, blue: 0.10).opacity(0.40)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1.5
+                        )
+                )
+
+            // 弥散微光
+            Circle()
+                .fill(Color(red: 1.0, green: 0.85, blue: 0.20).opacity(0.18))
+                .frame(width: size * 0.70, height: size * 0.70)
+
+            // 中心柠檬 Emoji / 图标
+            Text("🍋")
+                .font(.system(size: size * 0.52))
+        }
+        .frame(width: size, height: size)
+    }
+}

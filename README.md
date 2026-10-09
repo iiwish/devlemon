@@ -62,14 +62,17 @@ go install github.com/iiwish/devlemon/cmd/devlemon@latest
 ### 4. Native macOS Client (MenuBar Extra + Deep Clean)
 
 ```bash
-make app      # Build self-contained build/DevLemon.app
+make app      # Build self-contained build/DevLemon.app (Supports Direct & Apple Notarization)
 make run-app  # Launch the native macOS app
 ```
 
 Features:
-- 🍋 **MenuBar Live Monitor**: Real-time network waveform graph, CPU, RAM and SSD gauges.
-- ⚡️ **Deep Scan Radar**: Glowing rotating hexagonal core animation with live path scanning.
-- 📦 **Categorized Accordion**: Foldable sections, risk badges (Safe / Rebuildable / Caution), and one-click clean.
+- 🍋 **MenuBar Live Monitor**: Real-time smooth Bézier waveform network graph, CPU, RAM and SSD gauges.
+- ⚡️ **Quick Safe Clean**: Instant scan & purge safe system caches directly from the menubar popover.
+- 📱 **App Caches & Garbage**: Deep detection for Xcode, VSCode, WeChat, Lark, DingTalk, and music streamers while strictly protecting chats and credentials.
+- 🛡️ **Conservative Pre-selection**: Only 100% safe system caches are pre-checked by default; dependency items require explicit confirmation.
+- 🔍 **Filter & Sort**: Dynamic text search and sort-by-size toggle.
+- 🔒 **100% Local & Privacy-First**: Zero telemetry, zero cloud tracking, includes Apple Privacy Manifest. See [Privacy Policy](PRIVACY.md).
 
 ---
 

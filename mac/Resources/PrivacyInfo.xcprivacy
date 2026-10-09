@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- 不进行任何跨应用/跨网站用户追踪 -->
+    <key>NSPrivacyTracking</key>
+    <false/>
+    <key>NSPrivacyTrackingDomains</key>
+    <array/>
+    <!-- 不收集、不上报任何用户隐私数据 (完全本地离线运行) -->
+    <key>NSPrivacyCollectedDataTypes</key>
+    <array/>
+    <!-- 声明访问的 Apple 敏感系统 API 类别与合规理由 (Required Reason API) -->
+    <key>NSPrivacyAccessedAPITypes</key>
+    <array>
+        <!-- 磁盘可用空间检测：用于在界面显示可用磁盘容量与垃圾清理后释放的空间对比 -->
+        <dict>
+            <key>NSPrivacyAccessedAPIType</key>
+            <string>NSPrivacyAccessedAPICategoryDiskSpace</string>
+            <key>NSPrivacyAccessedAPITypeReasons</key>
+            <array>
+                <string>E174.1</string>
+            </array>
+        </dict>
+        <!-- 文件时间戳检测：用于计算缓存文件与项目产物的生成时间与陈旧程度 -->
+        <dict>
+            <key>NSPrivacyAccessedAPIType</key>
+            <string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+            <key>NSPrivacyAccessedAPITypeReasons</key>
+            <array>
+                <string>C617.1</string>
+            </array>
+        </dict>
+        <!-- 系统启动时间/CPU负载统计：用于系统状态监视器实时展示 CPU 使用率 -->
+        <dict>
+            <key>NSPrivacyAccessedAPIType</key>
+            <string>NSPrivacyAccessedAPICategorySystemBootTime</string>
+            <key>NSPrivacyAccessedAPITypeReasons</key>
+            <array>
+                <string>35F9.1</string>
+            </array>
+        </dict>
+    </array>
+</dict>
+</plist>

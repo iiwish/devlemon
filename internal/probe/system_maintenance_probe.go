@@ -167,7 +167,6 @@ func (p *SystemMaintenanceProbe) Scan(ctx context.Context, cfg *config.Config) (
 		{id: "arc_cache", name: "Arc 浏览器网络缓存", rel: filepath.Join("Library", "Caches", "company.thebrowser.Arc"), minSz: 10 * 1024 * 1024},
 		{id: "brave_cache", name: "Brave 浏览器网络缓存", rel: filepath.Join("Library", "Caches", "BraveSoftware", "Brave-Browser"), minSz: 10 * 1024 * 1024},
 		{id: "firefox_cache", name: "Firefox 浏览器网络缓存", rel: filepath.Join("Library", "Caches", "Firefox"), minSz: 10 * 1024 * 1024},
-		{id: "wechat_cache", name: "微信应用临时图片与媒体缓存", rel: filepath.Join("Library", "Caches", "com.tencent.xinWeChat"), minSz: 20 * 1024 * 1024},
 	}
 
 	for _, bt := range browserTargets {

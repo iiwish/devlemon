@@ -10,6 +10,12 @@ public enum AppStage {
     case cleaned
 }
 
+public enum QuickCleanStatus: Equatable {
+    case idle
+    case cleaning
+    case success(String)
+}
+
 public final class AppState: ObservableObject {
     public static let shared = AppState()
 
@@ -17,6 +23,20 @@ public final class AppState: ObservableObject {
     @Published public var scanReport: ScanReport?
     @Published public var lastCleanResult: CleanResult?
     @Published public var errorMessage: String?
+
+    // 快捷清理状态 (用于下拉菜单快捷卡片)
+    @Published public var quickCleanStatus: QuickCleanStatus = .idle
+    @Published public var safeReclaimableBytes: Int64 = 0
+    @Published public var hasCheckedSafeClean: Bool = false
+
+    // 结果搜索与排序过滤
+    @Published public var searchQuery: String = ""
+    @Published public var sortBySize: Bool = false
+
+    // 清理进度细节
+    @Published public var cleaningCurrentItemTitle: String = ""
+    @Published public var diskFreeBeforeClean: String = ""
+    @Published public var diskFreeAfterClean: String = ""
 
     // 选中的清理项 ID 集合
     @Published public var selectedItemIDs: Set<String> = []
@@ -64,22 +84,16 @@ public final class AppState: ObservableObject {
                 await MainActor.run {
                     self.stopScanAnimationSimulation()
                     self.scanReport = report
-                    // 默认自动勾选所有 safe 项以及未受保护项
+                    // 默认保守预选策略（对标柠檬清理）：
+                    // 1. 仅预选绝对纯净无感知的系统基础维护项与浏览器网络缓存（Category: .systemCache 且 risk == .safe）
+                    // 2. 属于应用垃圾 (appCache) 或开发工具链/包管理缓存/Docker 等项目，默认一律【不勾选】！
+                    // 3. 所有 rebuildable / caution 风险等级项目，默认一律【不勾选】！
+                    // 4. 让用户在知情状态下自主按需勾选应用或代码依赖进行清理，彻底消除误删恐慌。
                     var defaultSelected = Set<String>()
                     for grp in report.groups {
                         for item in grp.items {
-                            if !item.isProtected && item.risk == .safe {
+                            if !item.isProtected && item.risk == .safe && item.category == .systemCache {
                                 defaultSelected.insert(item.id)
-                            }
-                        }
-                    }
-                    // 如果 safe 为空，则勾选所有非 caution
-                    if defaultSelected.isEmpty {
-                        for grp in report.groups {
-                            for item in grp.items {
-                                if !item.isProtected && item.risk != .caution {
-                                    defaultSelected.insert(item.id)
-                                }
                             }
                         }
                     }
@@ -92,8 +106,78 @@ public final class AppState: ObservableObject {
             } catch {
                 await MainActor.run {
                     self.stopScanAnimationSimulation()
+                    if let bridgeErr = error as? CLIBridgeError, case .cancelled = bridgeErr {
+                        // 用户主动停止，无需提示错误
+                        self.currentStage = .idle
+                    } else {
+                        self.errorMessage = error.localizedDescription
+                        self.currentStage = .idle
+                    }
+                }
+            }
+        }
+    }
+
+    /// 手动终止当前深度扫描
+    @MainActor
+    public func stopScan() {
+        CLIBridge.shared.cancelActiveOperation()
+        stopScanAnimationSimulation()
+        withAnimation(.easeInOut(duration: 0.25)) {
+            self.currentStage = .idle
+            self.scanProgress = 0.0
+            self.errorMessage = nil
+        }
+    }
+
+    /// 刷新下拉菜单中的安全垃圾可清理数值
+    @MainActor
+    public func refreshSafeReclaimableSize() {
+        Task {
+            do {
+                let report = try await CLIBridge.shared.scan(safeOnly: true)
+                var safeBytes: Int64 = 0
+                for grp in report.groups {
+                    for item in grp.items where !item.isProtected && item.risk == .safe {
+                        safeBytes += item.sizeBytes
+                    }
+                }
+                await MainActor.run {
+                    self.safeReclaimableBytes = safeBytes
+                    self.hasCheckedSafeClean = true
+                }
+            } catch {
+                print("Fast safe scan failed: \(error)")
+            }
+        }
+    }
+
+    /// 下拉菜单一键极速安全清理 (只清理绝对安全的临时缓存与垃圾)
+    @MainActor
+    public func startQuickClean() {
+        guard quickCleanStatus != .cleaning else { return }
+        _ = SecurityBookmarkManager.shared.startAccessing()
+        quickCleanStatus = .cleaning
+
+        Task {
+            do {
+                let result = try await CLIBridge.shared.clean(safeOnly: true)
+                await MainActor.run {
+                    self.lastCleanResult = result
+                    self.safeReclaimableBytes = 0
+                    self.quickCleanStatus = .success(result.freedFormatted)
+                    SystemMonitor.shared.refresh()
+
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
+                        if case .success = self.quickCleanStatus {
+                            self.quickCleanStatus = .idle
+                        }
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    self.quickCleanStatus = .idle
                     self.errorMessage = error.localizedDescription
-                    self.currentStage = .idle
                 }
             }
         }
@@ -107,6 +191,7 @@ public final class AppState: ObservableObject {
 
         _ = SecurityBookmarkManager.shared.startAccessing()
 
+        diskFreeBeforeClean = SystemMonitor.shared.diskFreeFormatted
         currentStage = .cleaning
         errorMessage = nil
 
@@ -116,6 +201,8 @@ public final class AppState: ObservableObject {
             do {
                 let result = try await CLIBridge.shared.clean(items: targetIDs)
                 await MainActor.run {
+                    SystemMonitor.shared.refresh()
+                    self.diskFreeAfterClean = SystemMonitor.shared.diskFreeFormatted
                     self.lastCleanResult = result
                     withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
                         self.currentStage = .cleaned
@@ -138,6 +225,7 @@ public final class AppState: ObservableObject {
             self.scanReport = nil
             self.lastCleanResult = nil
             self.selectedItemIDs.removeAll()
+            self.searchQuery = ""
         }
     }
 
@@ -196,7 +284,7 @@ public final class AppState: ObservableObject {
         guard let report = scanReport else { return }
         var ids = Set<String>()
         for grp in report.groups {
-            for item in grp.items where !item.isProtected && item.risk == .safe {
+            for item in grp.items where !item.isProtected && item.risk == .safe && item.category == .systemCache {
                 ids.insert(item.id)
             }
         }

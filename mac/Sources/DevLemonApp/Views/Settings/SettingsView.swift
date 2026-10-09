@@ -9,6 +9,7 @@ public struct SettingsView: View {
     @ObservedObject var securityBookmark = SecurityBookmarkManager.shared
 
     @State private var cliReinstallNotice: String?
+    @State private var isCopiedCLI: Bool = false
 
     public init() {}
 
@@ -333,6 +334,29 @@ public struct SettingsView: View {
                     .font(.system(size: 12, weight: .medium, design: .monospaced))
                     .foregroundColor(Color(red: 1.0, green: 0.85, blue: 0.3))
                 Spacer()
+
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString("dl scan", forType: .string)
+                    isCopiedCLI = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                        isCopiedCLI = false
+                    }
+                } label: {
+                    HStack(spacing: 3) {
+                        Image(systemName: isCopiedCLI ? "checkmark" : "doc.on.doc")
+                            .font(.system(size: 10))
+                        Text(isCopiedCLI ? "已复制" : "复制")
+                            .font(.system(size: 10.5))
+                    }
+                    .foregroundColor(isCopiedCLI ? .green : .secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(Color.white.opacity(0.08))
+                    .cornerRadius(4)
+                }
+                .buttonStyle(.plain)
+                .help("复制终端命令至剪贴板")
 
                 Button {
                     let result = cliInstaller.reinstall()

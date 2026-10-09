@@ -5,12 +5,16 @@ public struct CircularGaugeView: View {
     public let percent: Double
     public let subtitle: String
     public let tintColor: Color
+    public var onTap: (() -> Void)?
 
-    public init(title: String, percent: Double, subtitle: String, tintColor: Color = .blue) {
+    @State private var isHovered: Bool = false
+
+    public init(title: String, percent: Double, subtitle: String, tintColor: Color = .blue, onTap: (() -> Void)? = nil) {
         self.title = title
         self.percent = max(0, min(100, percent))
         self.subtitle = subtitle
         self.tintColor = tintColor
+        self.onTap = onTap
     }
 
     public var body: some View {
@@ -68,11 +72,16 @@ public struct CircularGaugeView: View {
         .frame(maxWidth: .infinity)
         .background(
             RoundedRectangle(cornerRadius: 10)
-                .fill(Color.white.opacity(0.04))
+                .fill(isHovered ? Color.white.opacity(0.08) : Color.white.opacity(0.04))
                 .overlay(
                     RoundedRectangle(cornerRadius: 10)
-                        .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                        .stroke(Color.white.opacity(isHovered ? 0.12 : 0.06), lineWidth: 1)
                 )
         )
+        .contentShape(Rectangle())
+        .onHover { isHovered = $0 }
+        .onTapGesture {
+            onTap?()
+        }
     }
 }

@@ -87,14 +87,56 @@ public struct ScanningView: View {
                     .progressViewStyle(LinearProgressViewStyle(tint: Color.yellow))
                     .frame(width: 320)
                     .padding(.top, 6)
+
+                // 停止扫描按钮 (优雅胶囊微晶造型)
+                Button {
+                    state.stopScan()
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "stop.fill")
+                            .font(.system(size: 9))
+                        Text("停止扫描")
+                            .font(.system(size: 11.5, weight: .medium))
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 5.5)
+                    .background(
+                        Capsule()
+                            .fill(Color.white.opacity(0.08))
+                            .overlay(
+                                Capsule()
+                                    .stroke(Color.white.opacity(0.14), lineWidth: 0.8)
+                            )
+                    )
+                    .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("中止当前扫描并返回首页")
+                .padding(.top, 4)
             }
 
-            // 底部 4 个阶段雷达徽章
-            HStack(spacing: 24) {
-                PhaseBadge(icon: "shippingbox.fill", title: "容器环境", isActive: true)
-                PhaseBadge(icon: "hammer.fill", title: "工程构建", isActive: true)
-                PhaseBadge(icon: "iphone", title: "模拟器", isActive: true)
-                PhaseBadge(icon: "trash.fill", title: "系统维护", isActive: true)
+            // 底部 4 个阶段雷达徽章 (动态点亮与脉冲)
+            HStack(spacing: 18) {
+                PhaseBadge(
+                    icon: "trash.fill",
+                    title: "系统维护",
+                    state: phaseState(forIndex: 0)
+                )
+                PhaseBadge(
+                    icon: "square.grid.2x2.fill",
+                    title: "应用垃圾",
+                    state: phaseState(forIndex: 1)
+                )
+                PhaseBadge(
+                    icon: "shippingbox.fill",
+                    title: "容器环境",
+                    state: phaseState(forIndex: 2)
+                )
+                PhaseBadge(
+                    icon: "hammer.fill",
+                    title: "工程构建",
+                    state: phaseState(forIndex: 3)
+                )
             }
             .padding(.top, 8)
 
@@ -107,55 +149,81 @@ public struct ScanningView: View {
             pulseScale = 1.15
         }
     }
+
+    private func phaseState(forIndex index: Int) -> PhaseState {
+        let p = state.scanProgress
+        // 4 个阶段对应的进度区间
+        let thresholds: [Double] = [0.25, 0.50, 0.75, 1.0]
+        let currentTarget = thresholds[index]
+        let previousTarget = index == 0 ? 0.0 : thresholds[index - 1]
+
+        if p >= currentTarget {
+            return .completed
+        } else if p >= previousTarget {
+            return .active
+        } else {
+            return .pending
+        }
+    }
+}
+
+fileprivate enum PhaseState {
+    case pending
+    case active
+    case completed
 }
 
 fileprivate struct PhaseBadge: View {
     let icon: String
     let title: String
-    let isActive: Bool
+    let state: PhaseState
 
     var body: some View {
         HStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.system(size: 11))
-                .foregroundColor(isActive ? .yellow : .secondary)
+            badgeIcon
+
             Text(title)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundColor(isActive ? .primary : .secondary)
+                .font(.system(size: 11, weight: state == .active ? .semibold : .medium))
+                .foregroundColor(textColor)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
         .background(
             Capsule()
-                .fill(Color.white.opacity(0.04))
+                .fill(state == .active ? Color.yellow.opacity(0.12) : Color.white.opacity(0.04))
                 .overlay(
                     Capsule()
-                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                        .stroke(
+                            state == .active ? Color.yellow.opacity(0.35) : Color.white.opacity(0.06),
+                            lineWidth: 1
+                        )
                 )
         )
     }
-}
 
-fileprivate struct HexagonShape: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let width = rect.width
-        let height = rect.height
-        let xCenter = width / 2
-        let yCenter = height / 2
-        let radius = min(width, height) / 2
-
-        for i in 0..<6 {
-            let angle = CGFloat(i) * (CGFloat.pi / 3.0)
-            let x = xCenter + radius * cos(angle)
-            let y = yCenter + radius * sin(angle)
-            if i == 0 {
-                path.move(to: CGPoint(x: x, y: y))
-            } else {
-                path.addLine(to: CGPoint(x: x, y: y))
-            }
+    @ViewBuilder
+    private var badgeIcon: some View {
+        switch state {
+        case .completed:
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 11))
+                .foregroundColor(.green)
+        case .active:
+            Image(systemName: icon)
+                .font(.system(size: 11))
+                .foregroundColor(.yellow)
+        case .pending:
+            Image(systemName: icon)
+                .font(.system(size: 11))
+                .foregroundColor(.secondary.opacity(0.4))
         }
-        path.closeSubpath()
-        return path
+    }
+
+    private var textColor: Color {
+        switch state {
+        case .active: return .primary
+        case .completed: return .primary.opacity(0.85)
+        case .pending: return .secondary.opacity(0.5)
+        }
     }
 }
