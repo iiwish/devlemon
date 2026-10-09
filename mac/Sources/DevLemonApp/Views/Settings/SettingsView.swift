@@ -337,6 +337,17 @@ public struct SettingsView: View {
                         }
                     }
                 }
+
+                // 优雅降级说明：系统级守护进程与容器合规说明
+                HStack(spacing: 6) {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 11))
+                        .foregroundColor(.cyan)
+                    Text("提示：Docker 容器与 OrbStack 运行于底层系统守护进程中，受系统沙盒保护隔离。推荐配合配套开源命令行工具 dl 在终端中运行「dl clean」进行底层资源释放。")
+                        .font(.system(size: 10.5))
+                        .foregroundColor(.secondary)
+                }
+                .padding(.top, 4)
             }
         }
         .padding(14)
@@ -350,92 +361,166 @@ public struct SettingsView: View {
     private var cliSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("终端命令行工具 (CLI)")
+                Text(securityBookmark.isSandboxed ? "开源极客终端生态 (CLI)" : "终端命令行工具 (CLI)")
                     .font(.system(size: 13.5, weight: .semibold))
                     .foregroundColor(.primary)
 
                 Spacer()
 
-                // 状态徽标
-                HStack(spacing: 5) {
-                    Circle()
-                        .fill(cliInstaller.isInstalled ? Color.green : Color.orange)
-                        .frame(width: 7, height: 7)
-                    Text(cliInstaller.isInstalled ? "已安装 (\(cliInstaller.installedPath))" : "未检测到")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(cliInstaller.isInstalled ? .green : .orange)
-                }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(Color.white.opacity(0.06))
-                .cornerRadius(12)
-            }
-
-            Text("应用启动时已默认自动将核心引擎安装至系统终端 PATH，您可随时在 Terminal 中运行命令：")
-                .font(.system(size: 11.5))
-                .foregroundColor(.secondary)
-
-            // 示例命令行代码块
-            HStack {
-                Text("$ dl scan")
-                    .font(.system(size: 12, weight: .medium, design: .monospaced))
-                    .foregroundColor(Color(red: 1.0, green: 0.85, blue: 0.3))
-                Text("或")
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
-                Text("$ devlemon clean")
-                    .font(.system(size: 12, weight: .medium, design: .monospaced))
-                    .foregroundColor(Color(red: 1.0, green: 0.85, blue: 0.3))
-                Spacer()
-
-                Button {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString("dl scan", forType: .string)
-                    isCopiedCLI = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                        isCopiedCLI = false
-                    }
-                } label: {
-                    HStack(spacing: 3) {
-                        Image(systemName: isCopiedCLI ? "checkmark" : "doc.on.doc")
+                if securityBookmark.isSandboxed {
+                    // 沙盒环境徽标
+                    HStack(spacing: 5) {
+                        Image(systemName: "terminal.fill")
                             .font(.system(size: 10))
-                        Text(isCopiedCLI ? "已复制" : "复制")
-                            .font(.system(size: 10.5))
-                    }
-                    .foregroundColor(isCopiedCLI ? .green : .secondary)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(Color.white.opacity(0.08))
-                    .cornerRadius(4)
-                }
-                .buttonStyle(.plain)
-                .help("复制终端命令至剪贴板")
-
-                Button {
-                    let result = cliInstaller.reinstall()
-                    cliReinstallNotice = result.message
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "arrow.triangle.2.circlepath")
-                            .font(.system(size: 11))
-                        Text("重新链接")
+                            .foregroundColor(.cyan)
+                        Text("全功能开源伴侣")
                             .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.cyan)
                     }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(Color.white.opacity(0.12))
-                    .cornerRadius(6)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.cyan.opacity(0.12))
+                    .cornerRadius(12)
+                } else {
+                    // 状态徽标
+                    HStack(spacing: 5) {
+                        Circle()
+                            .fill(cliInstaller.isInstalled ? Color.green : Color.orange)
+                            .frame(width: 7, height: 7)
+                        Text(cliInstaller.isInstalled ? "已安装 (\(cliInstaller.installedPath))" : "未检测到")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(cliInstaller.isInstalled ? .green : .orange)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.white.opacity(0.06))
+                    .cornerRadius(12)
                 }
-                .buttonStyle(.plain)
             }
-            .padding(10)
-            .background(Color.black.opacity(0.25))
-            .cornerRadius(6)
 
-            if let notice = cliReinstallNotice {
-                Text(notice)
-                    .font(.system(size: 11))
-                    .foregroundColor(.green)
+            if securityBookmark.isSandboxed {
+                Text("DevLemon 拥有配套的开源终端命令行引擎 dl。在终端中可享用全屏 Bubble Tea TUI 交互式仪表盘，并支持不受沙盒约束的底层 Docker 容器深度清理与 CI/CD 自动化集成：")
+                    .font(.system(size: 11.5))
+                    .foregroundColor(.secondary)
+
+                HStack {
+                    Text("$ brew install iiwish/tap/devlemon")
+                        .font(.system(size: 12, weight: .medium, design: .monospaced))
+                        .foregroundColor(Color(red: 1.0, green: 0.85, blue: 0.3))
+
+                    Spacer()
+
+                    Button {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString("brew install iiwish/tap/devlemon", forType: .string)
+                        isCopiedCLI = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                            isCopiedCLI = false
+                        }
+                    } label: {
+                        HStack(spacing: 3) {
+                            Image(systemName: isCopiedCLI ? "checkmark" : "doc.on.doc")
+                                .font(.system(size: 10))
+                            Text(isCopiedCLI ? "已复制" : "复制")
+                                .font(.system(size: 10.5))
+                        }
+                        .foregroundColor(isCopiedCLI ? .green : .secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(Color.white.opacity(0.08))
+                        .cornerRadius(4)
+                    }
+                    .buttonStyle(.plain)
+                    .help("复制 Homebrew 安装指令")
+
+                    Button {
+                        if let url = URL(string: "https://github.com/iiwish/devlemon#readme") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.up.right.square")
+                                .font(.system(size: 11))
+                            Text("终端文档")
+                                .font(.system(size: 11, weight: .medium))
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(Color.white.opacity(0.12))
+                        .cornerRadius(6)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(10)
+                .background(Color.black.opacity(0.25))
+                .cornerRadius(6)
+            } else {
+                Text("应用启动时已默认自动将核心引擎安装至系统终端 PATH，您可随时在 Terminal 中运行命令：")
+                    .font(.system(size: 11.5))
+                    .foregroundColor(.secondary)
+
+                // 示例命令行代码块
+                HStack {
+                    Text("$ dl scan")
+                        .font(.system(size: 12, weight: .medium, design: .monospaced))
+                        .foregroundColor(Color(red: 1.0, green: 0.85, blue: 0.3))
+                    Text("或")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                    Text("$ devlemon clean")
+                        .font(.system(size: 12, weight: .medium, design: .monospaced))
+                        .foregroundColor(Color(red: 1.0, green: 0.85, blue: 0.3))
+                    Spacer()
+
+                    Button {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString("dl scan", forType: .string)
+                        isCopiedCLI = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                            isCopiedCLI = false
+                        }
+                    } label: {
+                        HStack(spacing: 3) {
+                            Image(systemName: isCopiedCLI ? "checkmark" : "doc.on.doc")
+                                .font(.system(size: 10))
+                            Text(isCopiedCLI ? "已复制" : "复制")
+                                .font(.system(size: 10.5))
+                        }
+                        .foregroundColor(isCopiedCLI ? .green : .secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(Color.white.opacity(0.08))
+                        .cornerRadius(4)
+                    }
+                    .buttonStyle(.plain)
+                    .help("复制终端命令至剪贴板")
+
+                    Button {
+                        let result = cliInstaller.reinstall()
+                        cliReinstallNotice = result.message
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                                .font(.system(size: 11))
+                            Text("重新链接")
+                                .font(.system(size: 11, weight: .medium))
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(Color.white.opacity(0.12))
+                        .cornerRadius(6)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(10)
+                .background(Color.black.opacity(0.25))
+                .cornerRadius(6)
+
+                if let notice = cliReinstallNotice {
+                    Text(notice)
+                        .font(.system(size: 11))
+                        .foregroundColor(.green)
+                }
             }
         }
         .padding(14)
@@ -445,7 +530,7 @@ public struct SettingsView: View {
         )
     }
 
-    // MARK: - 4. 软件自动更新 (Sparkle 2.0)
+    // MARK: - 5. 软件自动更新 (Sparkle 2.0)
     private var updateSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -526,24 +611,95 @@ public struct SettingsView: View {
         )
     }
 
-    // MARK: - 5. 底部版本信息
+    // MARK: - 6. 底部关于与开源社区
     private var footerSection: some View {
-        HStack {
-            Text("DevLemon v0.2.6")
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
-                .foregroundColor(.secondary)
-            Spacer()
-            if updateManager.isAppStoreBuild {
-                Text("Mac App Store 正式版")
+        VStack(spacing: 10) {
+            HStack {
+                Text("DevLemon v0.2.6")
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundColor(.primary)
+
+                Text("• 100% 本地离线运行 • MIT 开源协议")
                     .font(.system(size: 11))
-                    .foregroundColor(.secondary.opacity(0.7))
-            } else {
-                Text("基于 Sparkle 2.0 安全签名更新机制")
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary.opacity(0.7))
+                    .foregroundColor(.secondary)
+
+                Spacer()
+
+                if updateManager.isAppStoreBuild {
+                    Text("Mac App Store 正式版")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.green)
+                } else {
+                    Text("Sparkle 安全更新")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary.opacity(0.7))
+                }
+            }
+
+            // 开源生态操作入口
+            HStack(spacing: 8) {
+                Button {
+                    if let url = URL(string: "https://github.com/iiwish/devlemon") {
+                        NSWorkspace.shared.open(url)
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "link")
+                            .font(.system(size: 10.5))
+                        Text("GitHub 官方主页")
+                            .font(.system(size: 11, weight: .medium))
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(Color.white.opacity(0.08))
+                    .cornerRadius(5)
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    if let url = URL(string: "https://github.com/iiwish/devlemon/issues") {
+                        NSWorkspace.shared.open(url)
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "bubble.left.and.bubble.right")
+                            .font(.system(size: 10.5))
+                        Text("问题反馈与建议")
+                            .font(.system(size: 11, weight: .medium))
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(Color.white.opacity(0.08))
+                    .cornerRadius(5)
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    if let url = URL(string: "https://github.com/iiwish/devlemon/blob/main/PRIVACY.md") {
+                        NSWorkspace.shared.open(url)
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "hand.raised.fill")
+                            .font(.system(size: 10.5))
+                        Text("隐私政策")
+                            .font(.system(size: 11, weight: .medium))
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(Color.white.opacity(0.08))
+                    .cornerRadius(5)
+                }
+                .buttonStyle(.plain)
+
+                Spacer()
             }
         }
-        .padding(.horizontal, 4)
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color.white.opacity(0.03))
+        )
     }
 
     private var isAllDisabled: Bool {
