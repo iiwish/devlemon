@@ -476,7 +476,7 @@ public struct SettingsView: View {
     // MARK: - 5. 底部版本信息
     private var footerSection: some View {
         HStack {
-            Text("DevLemon v0.2.5")
+            Text("DevLemon v0.2.6")
                 .font(.system(size: 12, weight: .semibold, design: .rounded))
                 .foregroundColor(.secondary)
             Spacer()
