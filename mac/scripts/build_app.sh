@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MAC_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 REPO_DIR="$(cd "${MAC_DIR}/.." && pwd)"
 OUTPUT_DIR="${REPO_DIR}/build"
-VERSION="0.2.10"
+VERSION="0.2.11"
 
 if [[ "${TARGET}" == "mas" ]]; then
     APP_NAME="DevLemon-MAS.app"

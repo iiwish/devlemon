@@ -27,6 +27,7 @@ func NewEngine(cfg *config.Config) *Engine {
 			probe.NewSimulatorProbe(),
 			probe.NewCacheProbe(),
 			probe.NewWorkspaceProbe(),
+			probe.NewManualReviewProbe(),
 		},
 	}
 	return e
@@ -106,8 +107,15 @@ func (e *Engine) Scan(ctx context.Context) (*model.ScanReport, error) {
 		model.CategoryWorkspaceBuild: 6, // 📂 项目构建产物与依赖
 	}
 
-	sort.Slice(report.Groups, func(i, j int) bool {
-		return categoryOrder[report.Groups[i].Category] < categoryOrder[report.Groups[j].Category]
+	// 需手动确认的保守项分组始终排在最后
+	groupRank := func(g *model.Group) int {
+		if g.ID == probe.ManualReviewGroupID {
+			return len(categoryOrder) + 1
+		}
+		return categoryOrder[g.Category]
+	}
+	sort.SliceStable(report.Groups, func(i, j int) bool {
+		return groupRank(report.Groups[i]) < groupRank(report.Groups[j])
 	})
 
 	return report, nil

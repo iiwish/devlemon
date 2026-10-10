@@ -615,7 +615,7 @@ public struct SettingsView: View {
     private var footerSection: some View {
         VStack(spacing: 10) {
             HStack {
-                Text("DevLemon v0.2.10")
+                Text("DevLemon v0.2.11")
                     .font(.system(size: 12, weight: .semibold, design: .rounded))
                     .foregroundColor(.primary)
 

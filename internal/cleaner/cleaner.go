@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 
 	"devlemon/internal/model"
 )
@@ -35,6 +37,24 @@ func (c *Cleaner) CleanItem(ctx context.Context, item *model.Item) error {
 		}
 		return os.RemoveAll(item.CleanPath)
 
+	case model.CleanTypeRemovePaths:
+		if len(item.CleanPaths) == 0 {
+			return fmt.Errorf("空清理路径列表")
+		}
+		// 先整体校验再删除，任一路径非法则整项拒绝执行
+		for _, p := range item.CleanPaths {
+			if err := validateRemovePath(p); err != nil {
+				return err
+			}
+		}
+		var firstErr error
+		for _, p := range item.CleanPaths {
+			if err := os.RemoveAll(p); err != nil && firstErr == nil {
+				firstErr = err
+			}
+		}
+		return firstErr
+
 	case model.CleanTypeCommand:
 		if len(item.CleanCommand) == 0 {
 			return fmt.Errorf("空清理指令")
@@ -45,6 +65,25 @@ func (c *Cleaner) CleanItem(ctx context.Context, item *model.Item) error {
 	default:
 		return fmt.Errorf("未知的清理模式: %s", item.CleanType)
 	}
+}
+
+// validateRemovePath 删除前的最后一道防线：必须是绝对路径，且不能是根目录、用户主目录或其直接上级
+func validateRemovePath(p string) error {
+	clean := filepath.Clean(p)
+	if p == "" || !filepath.IsAbs(clean) || clean == "/" {
+		return fmt.Errorf("非法删除路径: %q", p)
+	}
+	if home, err := os.UserHomeDir(); err == nil {
+		home = filepath.Clean(home)
+		if clean == home || strings.HasPrefix(home, clean+string(filepath.Separator)) {
+			return fmt.Errorf("拒绝删除用户主目录或其上级: %s", clean)
+		}
+	}
+	// 至少位于三级目录之下，杜绝 /Users、/var/folders 等顶层目录被误删
+	if strings.Count(clean, string(filepath.Separator)) < 3 {
+		return fmt.Errorf("删除路径层级过浅: %s", clean)
+	}
+	return nil
 }
 
 // CleanItems 批量清理

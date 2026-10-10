@@ -36,6 +36,8 @@ type CleanType string
 const (
 	CleanTypeRemovePath CleanType = "remove_path"
 	CleanTypeCommand    CleanType = "command"
+	// CleanTypeRemovePaths 逐个删除 CleanPaths 中的路径（不经过 shell，规避参数长度上限）
+	CleanTypeRemovePaths CleanType = "remove_paths"
 )
 
 // Item 可清理项或受保护项的最小单元
@@ -57,6 +59,7 @@ type Item struct {
 	CleanType    CleanType `json:"clean_type"`
 	CleanPath    string    `json:"clean_path,omitempty"`
 	CleanCommand []string  `json:"clean_command,omitempty"`
+	CleanPaths   []string  `json:"clean_paths,omitempty"`
 }
 
 // Group 归类组
