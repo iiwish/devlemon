@@ -85,22 +85,32 @@ jobs:
           ditto -c -k --sequesterRsrc --keepParent build/DevLemon.app "dist/DevLemon-${TAG}-macOS.zip"
           ditto -c -k --sequesterRsrc --keepParent build/DevLemon-MAS.app "dist/DevLemon-${TAG}-MAS.zip"
 
-      - name: Generate / Update Sparkle appcast.xml
+      - name: Generate signed Sparkle appcast.xml
         env:
           SPARKLE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
           TAG=${GITHUB_REF#refs/tags/}
           SPARKLE_TOOL="mac/.build/artifacts/sparkle/Sparkle/bin/generate_appcast"
-          if [[ -n "$SPARKLE_KEY" && -f "$SPARKLE_TOOL" ]]; then
-            echo "Signing update with Sparkle key..."
-            echo "$SPARKLE_KEY" | "$SPARKLE_TOOL" \
-              --download-url-prefix "https://github.com/iiwish/devlemon/releases/download/${TAG}/" \
-              --ed-key-file - \
-              -o appcast.xml \
-              dist/
-          else
-            echo "Notice: SPARKLE_PRIVATE_KEY secret not found or tool unavailable, skipping automated appcast signing"
+          # 缺少私钥或工具时直接失败：静默跳过会让已安装的客户端永远停留在旧的更新源
+          if [[ -z "$SPARKLE_KEY" ]]; then
+            echo "::error::SPARKLE_PRIVATE_KEY secret is not set; cannot sign the Sparkle update feed"
+            exit 1
           fi
+          if [[ ! -x "$SPARKLE_TOOL" ]]; then
+            echo "::error::generate_appcast not found at $SPARKLE_TOOL"
+            exit 1
+          fi
+          # 只对直装版生成更新条目，MAS 沙盒版由 App Store 负责更新，绝不能进入 Sparkle 更新源
+          mkdir -p sparkle_update
+          cp "dist/DevLemon-${TAG}-macOS.zip" sparkle_update/
+          echo "$SPARKLE_KEY" | "$SPARKLE_TOOL" \
+            --download-url-prefix "https://github.com/iiwish/devlemon/releases/download/${TAG}/" \
+            --ed-key-file - \
+            -o dist/appcast.xml \
+            sparkle_update/
+          grep -q "<sparkle:version>${TAG#v}</sparkle:version>" dist/appcast.xml
+          grep -q 'sparkle:edSignature=' dist/appcast.xml
+          cat dist/appcast.xml
 
       - name: Upload Mac artifacts
         uses: actions/upload-artifact@v4
@@ -108,7 +118,7 @@ jobs:
           name: mac-app
           path: |
             dist/*.zip
-            appcast.xml
+            dist/appcast.xml
 
   publish-release:
     name: Publish GitHub Release
@@ -136,3 +146,22 @@ jobs:
           generate_release_notes: true
           draft: false
           prerelease: false
+
+      # 已安装的 App 通过 SUFeedURL 读取 main 分支上的 appcast.xml，发布完成后必须同步回 main
+      - name: Publish appcast.xml to main
+        run: |
+          git fetch origin main
+          git checkout -B main origin/main
+          cp release_files/appcast.xml appcast.xml
+          if git diff --quiet -- appcast.xml; then
+            echo "appcast.xml unchanged"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore(appcast): publish ${GITHUB_REF_NAME} update feed" -- appcast.xml
+          for i in 1 2 3; do
+            git push origin main && exit 0
+            git pull --rebase origin main
+          done
+          exit 1
