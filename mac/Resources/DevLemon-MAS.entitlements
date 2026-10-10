@@ -10,6 +10,10 @@
     <key>com.apple.security.files.user-selected.read-write</key>
     <true/>
 
+    <!-- 允许持久化与冷启动恢复用户授权的安全作用域书签 (实现一次授权永久记忆) -->
+    <key>com.apple.security.files.bookmarks.app-scope</key>
+    <true/>
+
     <!-- 允许出站网络连接 (用于网络测速与监控) -->
     <key>com.apple.security.network.client</key>
     <true/>

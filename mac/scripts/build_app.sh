@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MAC_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 REPO_DIR="$(cd "${MAC_DIR}/.." && pwd)"
 OUTPUT_DIR="${REPO_DIR}/build"
-VERSION="0.2.9"
+VERSION="0.2.10"
 
 if [[ "${TARGET}" == "mas" ]]; then
     APP_NAME="DevLemon-MAS.app"
@@ -161,7 +161,7 @@ if [[ "${TARGET}" == "mas" ]]; then
     # 签署沙盒内置 helper 引擎
     codesign --force --sign - \
         --entitlements "${MAC_DIR}/Resources/devlemon-helper.entitlements" \
-        "${APP_BUNDLE}/Contents/Resources/devlemon" 2>/dev/null || true
+        "${APP_BUNDLE}/Contents/Helpers/devlemon" 2>/dev/null || true
 
     # 签署沙盒主应用
     codesign --force --deep --sign - \

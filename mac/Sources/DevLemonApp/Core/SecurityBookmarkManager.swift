@@ -60,17 +60,28 @@ public final class SecurityBookmarkManager: ObservableObject {
         // 1. 恢复缓存目录书签
         if let data = UserDefaults.standard.data(forKey: cachesBookmarkKey) {
             var isStale = false
-            if let url = try? URL(resolvingBookmarkData: data, options: .withSecurityScope, relativeTo: nil, bookmarkDataIsStale: &isStale) {
-                if isStale, let fresh = try? url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil) {
-                    UserDefaults.standard.set(fresh, forKey: cachesBookmarkKey)
+            do {
+                let url = try URL(resolvingBookmarkData: data, options: .withSecurityScope, relativeTo: nil, bookmarkDataIsStale: &isStale)
+                if isStale {
+                    if let fresh = try? url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil) {
+                        UserDefaults.standard.set(fresh, forKey: cachesBookmarkKey)
+                        UserDefaults.standard.synchronize()
+                    }
+                }
+                if url.startAccessingSecurityScopedResource() {
+                    activeSecurityScopedURLs.append(url)
                 }
                 self.hasCachesAuthorization = true
                 self.authorizedCachesPath = url.path
                 self.hasAuthorization = true
                 self.authorizedPath = url.path
-            } else {
+                print("✅ [SecurityBookmark] 成功恢复已持久化的缓存目录授权: \(url.path)")
+            } catch {
+                print("⚠️ [SecurityBookmark] 解析持久化缓存书签失败: \(error)")
                 self.hasCachesAuthorization = false
                 self.authorizedCachesPath = ""
+                self.hasAuthorization = false
+                self.authorizedPath = ""
             }
         } else {
             self.hasCachesAuthorization = false
@@ -85,12 +96,16 @@ public final class SecurityBookmarkManager: ObservableObject {
             for (path, data) in dict {
                 var isStale = false
                 if let url = try? URL(resolvingBookmarkData: data, options: .withSecurityScope, relativeTo: nil, bookmarkDataIsStale: &isStale) {
+                    if url.startAccessingSecurityScopedResource() {
+                        activeSecurityScopedURLs.append(url)
+                    }
                     validPaths.append(url.path)
                 } else {
                     validPaths.append(path)
                 }
             }
             self.authorizedWorkspaces = validPaths
+            print("✅ [SecurityBookmark] 恢复 \(validPaths.count) 个工作区书签授权")
         } else {
             self.authorizedWorkspaces = []
         }
@@ -107,7 +122,7 @@ public final class SecurityBookmarkManager: ObservableObject {
         DispatchQueue.main.async {
             let panel = NSOpenPanel()
             panel.title = "授权访问缓存文件夹"
-            panel.message = "为合规扫描并释放 Google Chrome、Safari、日常开发工具等临时网络与渲染缓存，请授权 DevLemon 访问缓存文件夹 (Library/Caches)。"
+            panel.message = "为合规扫描并释放 Google Chrome、Safari、日常开发工具等临时网络与渲染缓存，请授权 DevLemon 访问缓存文件夹 (Library/Caches)。仅需首次授权一次即可永久记忆。"
             panel.prompt = "授权缓存目录"
             panel.canChooseFiles = false
             panel.canChooseDirectories = true
@@ -124,14 +139,20 @@ public final class SecurityBookmarkManager: ObservableObject {
                             relativeTo: nil
                         )
                         UserDefaults.standard.set(bookmarkData, forKey: self.cachesBookmarkKey)
+                        UserDefaults.standard.synchronize()
+
+                        if selectedURL.startAccessingSecurityScopedResource() {
+                            self.activeSecurityScopedURLs.append(selectedURL)
+                        }
+
                         self.hasCachesAuthorization = true
                         self.authorizedCachesPath = selectedURL.path
                         self.hasAuthorization = true
                         self.authorizedPath = selectedURL.path
-                        print("✅ 成功获取并持久化缓存目录书签: \(selectedURL.path)")
+                        print("✅ [SecurityBookmark] 成功获取并持久化缓存目录书签: \(selectedURL.path)")
                         completion(true)
                     } catch {
-                        print("❌ 创建缓存目录书签失败: \(error)")
+                        print("❌ [SecurityBookmark] 创建缓存目录书签失败: \(error)")
                         completion(false)
                     }
                 } else {
@@ -168,6 +189,7 @@ public final class SecurityBookmarkManager: ObservableObject {
                         }
                     }
                     UserDefaults.standard.set(dict, forKey: self.workspacesBookmarkKey)
+                    UserDefaults.standard.synchronize()
                     self.checkAuthorization()
                     completion(true)
                 } else {
