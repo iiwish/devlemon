@@ -16,15 +16,17 @@ type Probe interface {
 	Scan(ctx context.Context, cfg *config.Config) (*model.Group, error)
 }
 
-// FastDirSize 计算目录总大小（字节）
+// FastDirSize 高性能计算目录总大小（使用 WalkDir 规避昂贵的单文件 lstat 系统调用，大幅提速）
 func FastDirSize(path string) int64 {
 	var total int64
-	_ = filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
+	_ = filepath.WalkDir(path, func(_ string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}
-		if !info.IsDir() {
-			total += info.Size()
+		if !d.IsDir() {
+			if info, err := d.Info(); err == nil {
+				total += info.Size()
+			}
 		}
 		return nil
 	})

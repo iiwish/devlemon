@@ -23,19 +23,23 @@ public enum CLIBridgeError: LocalizedError {
 public final class CLIBridge: @unchecked Sendable {
     public static let shared = CLIBridge()
 
-    private var activeProcess: Process?
+    private var runningProcesses: [UUID: Process] = [:]
+    private var cancelledTaskIDs: Set<UUID> = []
     private let processLock = NSLock()
 
     private init() {}
 
-    /// 取消当前正在执行的进程任务
+    /// 取消当前所有正在执行的后台任务进程
     public func cancelActiveOperation() {
         processLock.lock()
         defer { processLock.unlock() }
-        if let proc = activeProcess, proc.isRunning {
-            proc.terminate()
+        for (id, proc) in runningProcesses {
+            cancelledTaskIDs.insert(id)
+            if proc.isRunning {
+                proc.terminate()
+            }
         }
-        activeProcess = nil
+        runningProcesses.removeAll()
     }
 
     /// 寻找 devlemon 引擎可执行文件的绝对路径
@@ -173,7 +177,8 @@ public final class CLIBridge: @unchecked Sendable {
     }
 
     private func runProcess(binaryPath: String, arguments: [String]) async throws -> Data {
-        try await withCheckedThrowingContinuation { continuation in
+        let taskID = UUID()
+        return try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 let process = Process()
                 process.executableURL = URL(fileURLWithPath: binaryPath)
@@ -193,10 +198,8 @@ public final class CLIBridge: @unchecked Sendable {
                 process.standardError = stderrPipe
 
                 self.processLock.lock()
-                self.activeProcess = process
+                self.runningProcesses[taskID] = process
                 self.processLock.unlock()
-
-                var wasTerminatedByUser = false
 
                 do {
                     try process.run()
@@ -205,13 +208,12 @@ public final class CLIBridge: @unchecked Sendable {
                     process.waitUntilExit()
 
                     self.processLock.lock()
-                    if self.activeProcess == nil {
-                        wasTerminatedByUser = true
-                    }
-                    self.activeProcess = nil
+                    let wasCancelled = self.cancelledTaskIDs.contains(taskID)
+                    self.cancelledTaskIDs.remove(taskID)
+                    self.runningProcesses.removeValue(forKey: taskID)
                     self.processLock.unlock()
 
-                    if wasTerminatedByUser {
+                    if wasCancelled {
                         continuation.resume(throwing: CLIBridgeError.cancelled)
                     } else if process.terminationStatus == 0 {
                         continuation.resume(returning: data)
@@ -221,7 +223,8 @@ public final class CLIBridge: @unchecked Sendable {
                     }
                 } catch {
                     self.processLock.lock()
-                    self.activeProcess = nil
+                    self.cancelledTaskIDs.remove(taskID)
+                    self.runningProcesses.removeValue(forKey: taskID)
                     self.processLock.unlock()
                     continuation.resume(throwing: CLIBridgeError.executionFailed(error.localizedDescription))
                 }

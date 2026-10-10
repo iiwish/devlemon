@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"devlemon/internal/config"
 	"devlemon/internal/i18n"
@@ -194,60 +195,69 @@ func (p *AppCacheProbe) Scan(ctx context.Context, cfg *config.Config) (*model.Gr
 		},
 	}
 
-	trackedPaths := make(map[string]bool)
+	var mu sync.Mutex
+	var wg sync.WaitGroup
 
 	for _, spec := range knownAppSpecs {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-		}
-
-		var totalSize int64
-		var validPaths []string
-
-		for _, p := range spec.paths {
-			trackedPaths[p] = true
-			info, err := os.Stat(p)
-			if err != nil || !info.IsDir() {
-				continue
-			}
-			sz := FastDirSize(p)
-			if sz > 0 {
-				totalSize += sz
-				validPaths = append(validPaths, p)
-			}
-		}
-
-		if totalSize >= spec.minSize && len(validPaths) > 0 {
-			primaryPath := validPaths[0]
-			item := &model.Item{
-				ID:            spec.id,
-				Title:         spec.title,
-				Description:   spec.description,
-				Path:          primaryPath,
-				SizeBytes:     totalSize,
-				SizeFormatted: model.FormatBytes(totalSize),
-				Risk:          spec.risk,
-				Category:      model.CategoryAppCache,
-				IsProtected:   false,
-				CleanType:     model.CleanTypeRemovePath,
-				CleanPath:     primaryPath,
+		spec := spec
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			select {
+			case <-ctx.Done():
+				return
+			default:
 			}
 
-			// 如果有多个子路径，生成符合 shell 的清理指令
-			if len(validPaths) > 1 {
-				item.CleanType = model.CleanTypeCommand
-				args := []string{"rm", "-rf"}
-				args = append(args, validPaths...)
-				item.CleanCommand = args
+			var totalSize int64
+			var validPaths []string
+
+			for _, p := range spec.paths {
+				info, err := os.Stat(p)
+				if err != nil || !info.IsDir() {
+					continue
+				}
+				sz := FastDirSize(p)
+				if sz > 0 {
+					totalSize += sz
+					validPaths = append(validPaths, p)
+				}
 			}
 
-			group.Items = append(group.Items, item)
-			group.TotalSizeBytes += totalSize
-			group.TotalReclaimableBytes += totalSize
-		}
+			if totalSize >= spec.minSize && len(validPaths) > 0 {
+				primaryPath := validPaths[0]
+				item := &model.Item{
+					ID:            spec.id,
+					Title:         spec.title,
+					Description:   spec.description,
+					Path:          primaryPath,
+					SizeBytes:     totalSize,
+					SizeFormatted: model.FormatBytes(totalSize),
+					Risk:          spec.risk,
+					Category:      model.CategoryAppCache,
+					IsProtected:   false,
+					CleanType:     model.CleanTypeRemovePath,
+					CleanPath:     primaryPath,
+				}
+
+				// 如果有多个子路径，生成符合 shell 的清理指令
+				if len(validPaths) > 1 {
+					item.CleanType = model.CleanTypeCommand
+					args := []string{"rm", "-rf"}
+					args = append(args, validPaths...)
+					item.CleanCommand = args
+				}
+
+				mu.Lock()
+				group.Items = append(group.Items, item)
+				group.TotalSizeBytes += totalSize
+				group.TotalReclaimableBytes += totalSize
+				mu.Unlock()
+			}
+		}()
 	}
+
+	wg.Wait()
 
 	return group, nil
 }

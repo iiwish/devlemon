@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"devlemon/internal/config"
 	"devlemon/internal/i18n"
@@ -60,6 +61,7 @@ func (p *CacheProbe) Scan(ctx context.Context, cfg *config.Config) (*model.Group
 			id:          "npm_cache",
 			title:       i18n.T("npm Package Cache", "npm 离线安装包缓存"),
 			description: i18n.T("Global npm tarball cache (~/.npm), safe to purge", "npm 全局安装包缓存 (~/.npm)，按需重新拉取"),
+			subpath:     ".npm",
 			risk:        model.RiskRebuildable,
 			cleanCmd:    []string{"npm", "cache", "clean", "--force"},
 		},
@@ -138,47 +140,65 @@ func (p *CacheProbe) Scan(ctx context.Context, cfg *config.Config) (*model.Group
 		Items:    make([]*model.Item, 0),
 	}
 
-	for _, tgt := range targets {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-		}
+	var mu sync.Mutex
+	var wg sync.WaitGroup
 
+	for _, tgt := range targets {
+		tgt := tgt
+		if tgt.subpath == "" || tgt.subpath == "." {
+			continue
+		}
 		fullPath := filepath.Join(home, tgt.subpath)
+		if fullPath == home {
+			continue
+		}
 		info, err := os.Stat(fullPath)
 		if err != nil || !info.IsDir() {
 			continue
 		}
 
-		size := FastDirSize(fullPath)
-		if size < 10*1024*1024 { // 小于 10MB 的微小缓存暂时忽略，保持输出干净
-			continue
-		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
 
-		item := &model.Item{
-			ID:            tgt.id,
-			Title:         tgt.title,
-			Description:   tgt.description,
-			Path:          fullPath,
-			SizeBytes:     size,
-			SizeFormatted: model.FormatBytes(size),
-			Risk:          tgt.risk,
-			Category:      model.CategoryPackageCache,
-			IsProtected:   false,
-			CleanType:     model.CleanTypeRemovePath,
-			CleanPath:     fullPath,
-		}
+			size := FastDirSize(fullPath)
+			if size < 10*1024*1024 { // 小于 10MB 的微小缓存暂时忽略，保持输出干净
+				return
+			}
 
-		if len(tgt.cleanCmd) > 0 {
-			item.CleanType = model.CleanTypeCommand
-			item.CleanCommand = tgt.cleanCmd
-		}
+			item := &model.Item{
+				ID:            tgt.id,
+				Title:         tgt.title,
+				Description:   tgt.description,
+				Path:          fullPath,
+				SizeBytes:     size,
+				SizeFormatted: model.FormatBytes(size),
+				Risk:          tgt.risk,
+				Category:      model.CategoryPackageCache,
+				IsProtected:   false,
+				CleanType:     model.CleanTypeRemovePath,
+				CleanPath:     fullPath,
+			}
 
-		group.Items = append(group.Items, item)
-		group.TotalSizeBytes += size
-		group.TotalReclaimableBytes += size
+			if len(tgt.cleanCmd) > 0 {
+				item.CleanType = model.CleanTypeCommand
+				item.CleanCommand = tgt.cleanCmd
+			}
+
+			mu.Lock()
+			group.Items = append(group.Items, item)
+			group.TotalSizeBytes += size
+			group.TotalReclaimableBytes += size
+			mu.Unlock()
+		}()
 	}
+
+	wg.Wait()
 
 	return group, nil
 }

@@ -133,6 +133,7 @@ public final class AppState: ObservableObject {
     /// 刷新下拉菜单中的安全垃圾可清理数值
     @MainActor
     public func refreshSafeReclaimableSize() {
+        guard currentStage != .scanning && currentStage != .cleaning else { return }
         Task {
             do {
                 let report = try await CLIBridge.shared.scan(safeOnly: true)
@@ -155,7 +156,7 @@ public final class AppState: ObservableObject {
     /// 下拉菜单一键极速安全清理 (只清理绝对安全的临时缓存与垃圾)
     @MainActor
     public func startQuickClean() {
-        guard quickCleanStatus != .cleaning else { return }
+        guard quickCleanStatus != .cleaning && currentStage != .scanning && currentStage != .cleaning else { return }
         _ = SecurityBookmarkManager.shared.startAccessing()
         quickCleanStatus = .cleaning
 

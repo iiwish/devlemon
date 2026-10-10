@@ -62,15 +62,22 @@ func (p *WorkspaceProbe) Scan(ctx context.Context, cfg *config.Config) (*model.G
 			continue
 		}
 
-		_ = filepath.Walk(wsRoot, func(currentPath string, info os.FileInfo, err error) error {
+		_ = filepath.WalkDir(wsRoot, func(currentPath string, d os.DirEntry, err error) error {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
 			default:
 			}
 
-			if err != nil || !info.IsDir() {
+			if err != nil || !d.IsDir() {
 				return nil
+			}
+
+			baseName := d.Name()
+
+			// 性能关键优化：绝不深入 .git, .svn, .hg, .idea 等庞大版本库与隐藏元数据目录
+			if strings.HasPrefix(baseName, ".") && baseName != ".build" && baseName != ".next" {
+				return filepath.SkipDir
 			}
 
 			rel, err := filepath.Rel(wsRoot, currentPath)
@@ -81,8 +88,6 @@ func (p *WorkspaceProbe) Scan(ctx context.Context, cfg *config.Config) (*model.G
 			if depth > cfg.MaxDepth && rel != "." {
 				return filepath.SkipDir
 			}
-
-			baseName := filepath.Base(currentPath)
 
 			// 如果命中目标构建目录名称
 			if targetMap[baseName] && rel != "." {
@@ -95,9 +100,14 @@ func (p *WorkspaceProbe) Scan(ctx context.Context, cfg *config.Config) (*model.G
 					projectName = fmt.Sprintf("%s/%s", wsName, relDir)
 				}
 
+				var modTime time.Time
+				if info, err := d.Info(); err == nil {
+					modTime = info.ModTime()
+				}
+
 				candidates = append(candidates, candidateDir{
 					path:        currentPath,
-					modTime:     info.ModTime(),
+					modTime:     modTime,
 					projectName: projectName,
 					baseName:    baseName,
 				})
