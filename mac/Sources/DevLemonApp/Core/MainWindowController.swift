@@ -25,6 +25,7 @@ public final class MainWindowController: NSObject, NSWindowDelegate {
             existing.makeKeyAndOrderFront(nil)
             existing.orderFrontRegardless()
             WindowManager.shared.updateDockVisibility()
+            SystemMonitor.shared.isDetailViewActive = true
             return
         }
 
@@ -46,10 +47,12 @@ public final class MainWindowController: NSObject, NSWindowDelegate {
         newWindow.makeKeyAndOrderFront(nil)
         newWindow.orderFrontRegardless()
         WindowManager.shared.updateDockVisibility()
+        SystemMonitor.shared.isDetailViewActive = true
     }
 
     public func close() {
         window?.orderOut(nil)
+        SystemMonitor.shared.isDetailViewActive = false
         DispatchQueue.main.async {
             WindowManager.shared.updateDockVisibility()
         }
@@ -57,6 +60,7 @@ public final class MainWindowController: NSObject, NSWindowDelegate {
 
     // 窗口即将/已经关闭时，延迟刷新程序坞显示状态
     public func windowWillClose(_ notification: Notification) {
+        SystemMonitor.shared.isDetailViewActive = false
         DispatchQueue.main.async {
             WindowManager.shared.updateDockVisibility()
         }

@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import Darwin
+import AppKit
 
 public final class SystemMonitor: ObservableObject {
     public static let shared = SystemMonitor()
@@ -34,15 +35,63 @@ public final class SystemMonitor: ObservableObject {
     @Published public var downloadHistory: [Double] = Array(repeating: 0.0, count: 25)
     @Published public var uploadHistory: [Double] = Array(repeating: 0.0, count: 25)
 
+    /// 标记当前详情面板（浮窗或主窗口）是否处于激活展示状态
+    @Published public var isDetailViewActive: Bool = false {
+        didSet {
+            if isDetailViewActive && !oldValue {
+                // 激活瞬间将内部历史队列同步至 Published 属性，立即可见
+                self.downloadHistory = internalDlHistory
+                self.uploadHistory = internalUlHistory
+            }
+        }
+    }
+
+    private var internalDlHistory: [Double] = Array(repeating: 0.0, count: 25)
+    private var internalUlHistory: [Double] = Array(repeating: 0.0, count: 25)
+    private var diskUpdateCounter: Int = 0
+
     private var timer: AnyCancellable?
     private var prevCpuInfo: processor_info_array_t?
     private var prevCpuInfoCount: mach_msg_type_number_t = 0
     private var prevNetworkInBytes: UInt64 = 0
     private var prevNetworkOutBytes: UInt64 = 0
     private var lastSampleTime: Date = Date()
+    private var isSleeping: Bool = false
 
     private init() {
+        setupPowerAndScreenObservers()
         startMonitoring()
+    }
+
+    private func setupPowerAndScreenObservers() {
+        let ws = NSWorkspace.shared.notificationCenter
+        ws.addObserver(forName: NSWorkspace.screensDidSleepNotification, object: nil, queue: OperationQueue.main) { [weak self] (_: Notification) in
+            self?.pauseMonitoring()
+        }
+        ws.addObserver(forName: NSWorkspace.screensDidWakeNotification, object: nil, queue: OperationQueue.main) { [weak self] (_: Notification) in
+            self?.resumeMonitoring()
+        }
+        ws.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: OperationQueue.main) { [weak self] (_: Notification) in
+            self?.pauseMonitoring()
+        }
+        ws.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: OperationQueue.main) { [weak self] (_: Notification) in
+            self?.resumeMonitoring()
+        }
+    }
+
+    public func pauseMonitoring() {
+        guard !isSleeping else { return }
+        isSleeping = true
+        timer?.cancel()
+        timer = nil
+    }
+
+    public func resumeMonitoring() {
+        guard isSleeping else { return }
+        isSleeping = false
+        lastSampleTime = Date()
+        refresh()
+        startTimer()
     }
 
     public func startMonitoring() {
@@ -56,6 +105,11 @@ public final class SystemMonitor: ObservableObject {
         updateMemory()
         _ = sampleCpuUsage()
 
+        startTimer()
+    }
+
+    private func startTimer() {
+        timer?.cancel()
         // 1秒定时刷新
         timer = Timer.publish(every: 1.0, on: .main, in: .common)
             .autoconnect()
@@ -65,13 +119,22 @@ public final class SystemMonitor: ObservableObject {
     }
 
     public func refresh() {
+        guard !isSleeping else { return }
+
         let now = Date()
         let interval = max(0.1, now.timeIntervalSince(lastSampleTime))
         lastSampleTime = now
 
         updateCpu()
         updateMemory()
-        updateDisk()
+
+        // 磁盘剩余容量极低频变动，每 30 秒更新一次即可
+        diskUpdateCounter += 1
+        if diskUpdateCounter >= 30 {
+            diskUpdateCounter = 0
+            updateDisk()
+        }
+
         updateNetwork(interval: interval)
 
         Task { @MainActor in
@@ -82,13 +145,19 @@ public final class SystemMonitor: ObservableObject {
     // MARK: - CPU Usage
     private func updateCpu() {
         let usage = sampleCpuUsage()
-        self.cpuUsage = usage
+        if abs(self.cpuUsage - usage) >= 0.5 {
+            self.cpuUsage = usage
+        }
+        let subtitle: String
         if usage < 30 {
-            self.cpuSubtitle = "\(cpuCoreCount) 核负载低"
+            subtitle = "\(cpuCoreCount) 核负载低"
         } else if usage < 70 {
-            self.cpuSubtitle = "\(cpuCoreCount) 核正常"
+            subtitle = "\(cpuCoreCount) 核正常"
         } else {
-            self.cpuSubtitle = "\(cpuCoreCount) 核繁忙"
+            subtitle = "\(cpuCoreCount) 核繁忙"
+        }
+        if self.cpuSubtitle != subtitle {
+            self.cpuSubtitle = subtitle
         }
     }
 
@@ -161,10 +230,18 @@ public final class SystemMonitor: ObservableObject {
         let total = ProcessInfo.processInfo.physicalMemory
 
         let percent = Double(used) / Double(total) * 100.0
-        self.memoryUsage = min(100.0, max(0.0, percent))
-        self.memoryUsedFormatted = ByteFormatter.format(Int64(used))
-        self.memoryTotalFormatted = ByteFormatter.format(Int64(total))
-        self.memorySubtitle = "已用 \(self.memoryUsedFormatted)"
+        if abs(self.memoryUsage - percent) >= 0.5 {
+            self.memoryUsage = min(100.0, max(0.0, percent))
+        }
+        let formatted = ByteFormatter.format(Int64(used))
+        if self.memoryUsedFormatted != formatted {
+            self.memoryUsedFormatted = formatted
+            self.memorySubtitle = "已用 \(formatted)"
+        }
+        let totalFormatted = ByteFormatter.format(Int64(total))
+        if self.memoryTotalFormatted != totalFormatted {
+            self.memoryTotalFormatted = totalFormatted
+        }
     }
 
     // MARK: - Disk Usage
@@ -234,19 +311,31 @@ public final class SystemMonitor: ObservableObject {
             self.downloadSpeedFormatted = formatSpeed(inSpeed)
             self.uploadSpeedFormatted = formatSpeed(outSpeed)
 
-            self.downloadSpeedShort = formatShortSpeed(inSpeed)
-            self.uploadSpeedShort = formatShortSpeed(outSpeed)
+            let newDlShort = formatShortSpeed(inSpeed)
+            let newUlShort = formatShortSpeed(outSpeed)
 
-            // 更新折线历史队列
-            var dl = self.downloadHistory
-            dl.removeFirst()
-            dl.append(inSpeed)
-            self.downloadHistory = dl
+            if self.downloadSpeedShort != newDlShort {
+                self.downloadSpeedShort = newDlShort
+            }
+            if self.uploadSpeedShort != newUlShort {
+                self.uploadSpeedShort = newUlShort
+            }
 
-            var ul = self.uploadHistory
-            ul.removeFirst()
-            ul.append(outSpeed)
-            self.uploadHistory = ul
+            self.downloadSpeedFormatted = formatSpeed(inSpeed)
+            self.uploadSpeedFormatted = formatSpeed(outSpeed)
+
+            // 内部常驻环形队列
+            internalDlHistory.removeFirst()
+            internalDlHistory.append(inSpeed)
+
+            internalUlHistory.removeFirst()
+            internalUlHistory.append(outSpeed)
+
+            // 仅在详情面板被展开或处于可见状态时，才将历史队列发布给 UI，彻底避免后台无效重绘
+            if isDetailViewActive {
+                self.downloadHistory = internalDlHistory
+                self.uploadHistory = internalUlHistory
+            }
         }
 
         prevNetworkInBytes = currentIn

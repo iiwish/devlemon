@@ -40,13 +40,17 @@ public final class CLIBridge: @unchecked Sendable {
 
     /// 寻找 devlemon 引擎可执行文件的绝对路径
     public func resolveBinaryPath() -> String? {
-        // 1. App Bundle Contents/MacOS 或 Contents/Helpers (符合 Apple App Store 规范)
-        if let execURL = Bundle.main.executableURL {
-            let macosDir = execURL.deletingLastPathComponent()
-            let helperInMacOS = macosDir.appendingPathComponent("devlemon").path
-            if FileManager.default.isExecutableFile(atPath: helperInMacOS) {
-                return helperInMacOS
+        let execURL = Bundle.main.executableURL
+
+        // 1. App Bundle Contents/Helpers (规范标准路径，规避与 Contents/MacOS/DevLemon 的大小写冲突)
+        if let bundleURL = Bundle.main.bundleURL as URL? {
+            let helperInHelpers = bundleURL.appendingPathComponent("Contents/Helpers/devlemon").path
+            if FileManager.default.isExecutableFile(atPath: helperInHelpers) {
+                return helperInHelpers
             }
+        }
+        if let execURL = execURL {
+            let macosDir = execURL.deletingLastPathComponent()
             let helpersDir = macosDir.deletingLastPathComponent().appendingPathComponent("Helpers")
             let helperInHelpers = helpersDir.appendingPathComponent("devlemon").path
             if FileManager.default.isExecutableFile(atPath: helperInHelpers) {
@@ -73,11 +77,14 @@ public final class CLIBridge: @unchecked Sendable {
             }
         }
 
-        // 3. 环境变量 PATH 查找
+        // 4. 环境变量 PATH 查找 (排除当前主程序自身)
         if let pathEnv = ProcessInfo.processInfo.environment["PATH"] {
             for dir in pathEnv.split(separator: ":") {
                 let candidate = String(dir) + "/devlemon"
                 if FileManager.default.isExecutableFile(atPath: candidate) {
+                    if let execPath = execURL?.path, (candidate as NSString).standardizingPath == (execPath as NSString).standardizingPath {
+                        continue
+                    }
                     return candidate
                 }
             }

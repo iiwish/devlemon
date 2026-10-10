@@ -7,6 +7,7 @@ public struct CircularGaugeView: View {
     public let tintColor: Color
     public var onTap: (() -> Void)?
 
+    @ObservedObject private var monitor = SystemMonitor.shared
     @State private var isHovered: Bool = false
 
     public init(title: String, percent: Double, subtitle: String, tintColor: Color = .blue, onTap: (() -> Void)? = nil) {
@@ -45,7 +46,7 @@ public struct CircularGaugeView: View {
                     .rotationEffect(.degrees(-90))
                     .frame(width: 54, height: 54)
                     .shadow(color: tintColor.opacity(0.3), radius: 3)
-                    .animation(.spring(response: 0.45, dampingFraction: 0.8), value: percent)
+                    .animation(monitor.isDetailViewActive ? .easeInOut(duration: 0.25) : nil, value: percent)
 
                 // 中心数值
                 Text("\(Int(percent))%")

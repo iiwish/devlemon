@@ -147,8 +147,20 @@ public struct MenuBarPopoverView: View {
         }
         .padding(16)
         .frame(width: 320)
+        .background(
+            WindowVisibilityTracker { isVisible in
+                let shouldBeActive = isVisible || MainWindowController.shared.isWindowVisible
+                if SystemMonitor.shared.isDetailViewActive != shouldBeActive {
+                    SystemMonitor.shared.isDetailViewActive = shouldBeActive
+                }
+            }
+        )
         .onAppear {
+            SystemMonitor.shared.isDetailViewActive = true
             state.refreshSafeReclaimableSize()
+        }
+        .onDisappear {
+            SystemMonitor.shared.isDetailViewActive = MainWindowController.shared.isWindowVisible
         }
     }
 
@@ -292,3 +304,79 @@ public struct MenuBarPopoverView: View {
         }
     }
 }
+
+// MARK: - 窗口显隐状态精确感知组件
+public struct WindowVisibilityTracker: NSViewRepresentable {
+    public var onVisibilityChanged: (Bool) -> Void
+
+    public init(onVisibilityChanged: @escaping (Bool) -> Void) {
+        self.onVisibilityChanged = onVisibilityChanged
+    }
+
+    public func makeNSView(context: Context) -> NSView {
+        let view = VisibilityObservingView()
+        view.onVisibilityChanged = onVisibilityChanged
+        return view
+    }
+
+    public func updateNSView(_ nsView: NSView, context: Context) {}
+
+    private final class VisibilityObservingView: NSView {
+        var onVisibilityChanged: ((Bool) -> Void)?
+        private var lastReported: Bool?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            evaluateVisibility()
+
+            guard let window = self.window else { return }
+            NotificationCenter.default.removeObserver(self)
+
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(onWindowChanged),
+                name: NSWindow.didChangeOcclusionStateNotification,
+                object: window
+            )
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(onWindowChanged),
+                name: NSWindow.didBecomeKeyNotification,
+                object: window
+            )
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(onWindowChanged),
+                name: NSWindow.didResignKeyNotification,
+                object: window
+            )
+        }
+
+        @objc private func onWindowChanged() {
+            evaluateVisibility()
+        }
+
+        private func evaluateVisibility() {
+            guard let window = self.window else {
+                report(false)
+                return
+            }
+            let isVisible = window.isVisible && window.occlusionState.contains(.visible)
+            report(isVisible)
+        }
+
+        private func report(_ val: Bool) {
+            if lastReported != val {
+                lastReported = val
+                DispatchQueue.main.async { [weak self] in
+                    self?.onVisibilityChanged?(val)
+                }
+            }
+        }
+
+        deinit {
+            NotificationCenter.default.removeObserver(self)
+        }
+    }
+}
+

@@ -8,7 +8,7 @@
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square" alt="License"></a>
     <a href="https://golang.org"><img src="https://img.shields.io/badge/Go-1.24+-00ADD8.svg?style=flat-square&logo=go" alt="Go Version"></a>
     <a href="https://apple.com/macos"><img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey.svg?style=flat-square&logo=apple" alt="Platform"></a>
-    <a href="https://github.com/iiwish/devlemon/releases"><img src="https://img.shields.io/badge/release-v0.2.6-emerald.svg?style=flat-square" alt="Release"></a>
+    <a href="https://github.com/iiwish/devlemon/releases"><img src="https://img.shields.io/badge/release-v0.2.7-emerald.svg?style=flat-square" alt="Release"></a>
     <a href="#readme"><img src="https://img.shields.io/badge/alias-dl-yellow.svg?style=flat-square" alt="Alias"></a>
     <a href="#readme"><img src="https://img.shields.io/badge/size-%3C%204MB-orange.svg?style=flat-square" alt="Binary Size"></a>
   </p>

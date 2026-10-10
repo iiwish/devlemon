@@ -8,15 +8,32 @@ public final class MenuBarImageProvider: ObservableObject {
     public static let shared = MenuBarImageProvider()
 
     @Published public var currentImage: NSImage?
+    private var lastSignature: String = ""
 
     private init() {
         regenerateImage()
     }
 
+    public func invalidateCache() {
+        lastSignature = ""
+        regenerateImage()
+    }
+
     public func regenerateImage() {
+        let settings = AppSettings.shared
+        let monitor = SystemMonitor.shared
+
+        // 计算当前状态栏显示配置与动态数值的状态签名
+        let signature = "\(settings.showLogo):\(settings.showNetwork):\(settings.showMemory):\(settings.showDisk):\(settings.showCPU):\(monitor.uploadSpeedShort):\(monitor.downloadSpeedShort):\(Int(monitor.memoryUsage)):\(Int(monitor.diskUsagePercent)):\(Int(monitor.cpuUsage))"
+
+        if signature == lastSignature && currentImage != nil {
+            return // 显示内容未发生任何改变，命中 Diff 缓存，直接跳过重排与光栅化
+        }
+        lastSignature = signature
+
         let view = MenuBarCompositeContent(
-            settings: AppSettings.shared,
-            monitor: SystemMonitor.shared
+            settings: settings,
+            monitor: monitor
         )
 
         let renderer = ImageRenderer(content: view)

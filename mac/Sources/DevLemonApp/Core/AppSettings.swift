@@ -53,7 +53,7 @@ public final class AppSettings: ObservableObject {
         menuBarUpdateId = UUID()
         objectWillChange.send()
         Task { @MainActor in
-            MenuBarImageProvider.shared.regenerateImage()
+            MenuBarImageProvider.shared.invalidateCache()
         }
     }
 

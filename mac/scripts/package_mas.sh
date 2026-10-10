@@ -50,17 +50,11 @@ if [[ -n "${APP_CERT}" ]]; then
     echo "✍️  [3/4] 使用证书签名应用: ${APP_CERT}"
     
     # 签署沙盒子进程 helper
-    if [[ -f "${APP_TARGET}/Contents/MacOS/devlemon" ]]; then
+    if [[ -f "${APP_TARGET}/Contents/Helpers/devlemon" ]]; then
         codesign --force --timestamp --options runtime \
             --entitlements "${MAC_DIR}/Resources/devlemon-helper.entitlements" \
             --sign "${APP_CERT}" \
-            "${APP_TARGET}/Contents/MacOS/devlemon"
-    fi
-    if [[ -f "${APP_TARGET}/Contents/Resources/devlemon" ]]; then
-        codesign --force --timestamp --options runtime \
-            --entitlements "${MAC_DIR}/Resources/devlemon-helper.entitlements" \
-            --sign "${APP_CERT}" \
-            "${APP_TARGET}/Contents/Resources/devlemon"
+            "${APP_TARGET}/Contents/Helpers/devlemon"
     fi
 
     # 签署主程序与 App Bundle

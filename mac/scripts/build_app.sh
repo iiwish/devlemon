@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MAC_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 REPO_DIR="$(cd "${MAC_DIR}/.." && pwd)"
 OUTPUT_DIR="${REPO_DIR}/build"
-VERSION="0.2.6"
+VERSION="0.2.7"
 
 if [[ "${TARGET}" == "mas" ]]; then
     APP_NAME="DevLemon-MAS.app"
@@ -38,14 +38,13 @@ fi
 echo "📁 [3/5] Packaging ${APP_NAME} bundle..."
 rm -rf "${APP_BUNDLE}"
 mkdir -p "${APP_BUNDLE}/Contents/MacOS"
+mkdir -p "${APP_BUNDLE}/Contents/Helpers"
 mkdir -p "${APP_BUNDLE}/Contents/Resources"
 
 cp "${SWIFT_BIN}" "${APP_BUNDLE}/Contents/MacOS/DevLemon"
-cp "${REPO_DIR}/devlemon" "${APP_BUNDLE}/Contents/MacOS/devlemon"
-cp "${REPO_DIR}/devlemon" "${APP_BUNDLE}/Contents/Resources/devlemon"
+cp "${REPO_DIR}/devlemon" "${APP_BUNDLE}/Contents/Helpers/devlemon"
 chmod +x "${APP_BUNDLE}/Contents/MacOS/DevLemon"
-chmod +x "${APP_BUNDLE}/Contents/MacOS/devlemon"
-chmod +x "${APP_BUNDLE}/Contents/Resources/devlemon"
+chmod +x "${APP_BUNDLE}/Contents/Helpers/devlemon"
 
 # 复制 Apple Privacy Manifest (合规必须)
 if [[ -f "${MAC_DIR}/Resources/PrivacyInfo.xcprivacy" ]]; then

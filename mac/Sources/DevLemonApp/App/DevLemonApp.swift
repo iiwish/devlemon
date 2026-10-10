@@ -4,6 +4,17 @@ import AppKit
 // MARK: - App 代理 (接管生命周期与统一调度)
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // 单实例保护：检测是否已存在运行中的 DevLemon 实例，避免重复创建 MenuBarExtra
+        let currentPID = ProcessInfo.processInfo.processIdentifier
+        let bundleID = Bundle.main.bundleIdentifier ?? "com.iiwish.devlemon"
+        let runningApps = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
+        let otherInstances = runningApps.filter { $0.processIdentifier != currentPID }
+        if let existing = otherInstances.first {
+            existing.activate(options: [.activateIgnoringOtherApps])
+            NSApplication.shared.terminate(nil)
+            return
+        }
+
         // 自动检测并安装/同步终端 CLI 软链接 (免去用户手动配置)
         CLIInstaller.shared.autoInstallIfNeeded()
 
