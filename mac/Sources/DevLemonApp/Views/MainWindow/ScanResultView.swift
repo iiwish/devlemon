@@ -297,16 +297,19 @@ public struct ScanResultView: View {
                 }
             }
 
-            // 2. 排序
-            if state.sortBySize {
-                items.sort { $0.sizeBytes > $1.sizeBytes }
-            }
+            // 2. 组内条目排序：每个分区内部条目默认始终按占用体积从大到小降序排列
+            items.sort { $0.sizeBytes > $1.sizeBytes }
 
             if !items.isEmpty {
                 var newGroup = group
                 newGroup.items = items
                 result.append(newGroup)
             }
+        }
+
+        // 3. 分区卡片排序：若启用“按体积降序”，各分区亦按总占用体积降序排列
+        if state.sortBySize {
+            result.sort { $0.totalReclaimableBytes > $1.totalReclaimableBytes }
         }
 
         return result

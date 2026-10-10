@@ -87,6 +87,10 @@ func (e *Engine) Scan(ctx context.Context) (*model.ScanReport, error) {
 
 	for res := range results {
 		if res.err == nil && res.group != nil && len(res.group.Items) > 0 {
+			// 每个分区内部的所有清理条目按占用体积从大到小严格降序排列
+			sort.Slice(res.group.Items, func(i, j int) bool {
+				return res.group.Items[i].SizeBytes > res.group.Items[j].SizeBytes
+			})
 			report.Groups = append(report.Groups, res.group)
 			report.TotalReclaimableBytes += res.group.TotalReclaimableBytes
 		}
