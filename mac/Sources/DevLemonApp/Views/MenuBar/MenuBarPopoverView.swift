@@ -197,6 +197,7 @@ public struct MenuBarPopoverView: View {
                         Text("安全垃圾可清理")
                             .font(.system(size: 11))
                             .foregroundColor(.secondary)
+                        runningSkippedHint
                     } else if state.hasCheckedSafeClean {
                         Text("0 B")
                             .font(.system(size: 22, weight: .bold, design: .rounded))
@@ -204,6 +205,7 @@ public struct MenuBarPopoverView: View {
                         Text("系统保持最佳状态")
                             .font(.system(size: 11))
                             .foregroundColor(.secondary)
+                        runningSkippedHint
                     } else {
                         Text("检测中...")
                             .font(.system(size: 18, weight: .bold, design: .rounded))
@@ -232,6 +234,18 @@ public struct MenuBarPopoverView: View {
     }
 
     // MARK: - 快速清理按钮
+    /// 运行中应用的缓存与待安装更新包不进入快速清理，提示用户其体积，避免与其他清理工具对比时产生困惑
+    @ViewBuilder
+    private var runningSkippedHint: some View {
+        if state.runningSkippedBytes > 0 {
+            Text("另 \(ByteFormatter.format(state.runningSkippedBytes)) 因应用运行中已跳过")
+                .font(.system(size: 10))
+                .foregroundColor(.secondary.opacity(0.75))
+                .lineLimit(1)
+                .help("正在运行的应用（浏览器、编辑器等）的缓存与待安装更新包不会被快速清理，退出应用后会自动计入；也可在深度清理中手动勾选")
+        }
+    }
+
     private var quickCleanButton: some View {
         SwiftUI.Group {
             switch state.quickCleanStatus {

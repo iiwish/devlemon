@@ -47,38 +47,43 @@ func (p *SystemMaintenanceProbe) Scan(ctx context.Context, cfg *config.Config) (
 	trashCh := make(chan int64, 1)
 	go func() { trashCh <- getTrashSize(ctx, home) }()
 
-	// 2. 桌面软件自动更新安装包残留 (Electron / App updaters)
-	cachesDir := filepath.Join(home, "Library", "Caches")
-	if entries, err := os.ReadDir(cachesDir); err == nil {
-		for _, entry := range entries {
-			if !entry.IsDir() {
-				continue
+	rc := newRunningChecker()
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	add := func(item *model.Item) {
+		mu.Lock()
+		group.Items = append(group.Items, item)
+		group.TotalSizeBytes += item.SizeBytes
+		group.TotalReclaimableBytes += item.SizeBytes
+		mu.Unlock()
+	}
+
+	// 2. 应用自动更新安装包（Squirrel ShipIt / Sparkle / electron-updater）
+	for _, t := range updaterCacheTargets(filepath.Join(home, "Library", "Caches")) {
+		t := t
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			item := newCacheItem("updater_"+t.dirName+"_"+filepath.Base(t.path),
+				fmt.Sprintf("%s (%s)", i18n.T("App Update Package", "应用更新安装包"), t.displayName()),
+				t.description(), []string{t.path}, 10*1024*1024, model.RiskSafe)
+			if item == nil {
+				return
 			}
-			name := entry.Name()
-			if strings.HasSuffix(name, "-updater") || strings.Contains(name, "desktop-updater") {
-				uDir := filepath.Join(cachesDir, name)
-				sz := FastDirSize(uDir)
-				if sz > 10*1024*1024 { // 大于 10MB
-					uName := filepath.Base(uDir)
-					item := &model.Item{
-						ID:            "updater_" + uName,
-						Title:         fmt.Sprintf("%s (%s)", i18n.T("App Update Cache", "应用更新残留包"), uName),
-						Description:   i18n.T("Residual update archives downloaded by auto-updaters", "应用自动升级后遗留在 Caches 目录下的更新安装包残留"),
-						Path:          uDir,
-						SizeBytes:     sz,
-						SizeFormatted: model.FormatBytes(sz),
-						Risk:          model.RiskSafe,
-						Category:      model.CategorySystemCache,
-						IsProtected:   false,
-						CleanType:     model.CleanTypeRemovePath,
-						CleanPath:     uDir,
-					}
-					group.Items = append(group.Items, item)
-					group.TotalSizeBytes += sz
-					group.TotalReclaimableBytes += sz
-				}
+			// 暂存版本与已安装版本相同说明已安装完毕，属于纯残留；否则应用运行中时可能是退出时待安装的更新
+			installed := t.stagedVersion != "" && t.stagedVersion == t.installedVersion
+			busy := modifiedWithin(t.path, updaterRecentWindow)
+			for _, proc := range t.installerProcs {
+				busy = busy || rc.processRunning(proc)
 			}
-		}
+			if busy || (!installed && rc.appRunning(t.bundleID, t.appPath, t.nameHint)) {
+				item.Risk = model.RiskRebuildable
+				item.Running = true
+				item.Title += i18n.T(" (Running)", "（运行中）")
+				item.Description = i18n.T("The app or its updater is running and this update may be installed when the app quits; skipped by quick clean. ", "应用或其更新程序正在运行，该更新可能在退出应用时安装，快速清理已自动跳过。") + item.Description
+			}
+			add(item)
+		}()
 	}
 
 	// 3. 应用运行日志 (~/Library/Logs，超过 1MB 时提示)
@@ -96,9 +101,7 @@ func (p *SystemMaintenanceProbe) Scan(ctx context.Context, cfg *config.Config) (
 			i18n.T("Application Logs", "应用与系统运行日志"),
 			i18n.T("Historical runtime logs in ~/Library/Logs (crash reports excluded)", "~/Library/Logs 下的历史运行日志（不含崩溃诊断报告）"),
 			logPaths, 1*1024*1024, model.RiskSafe); item != nil {
-			group.Items = append(group.Items, item)
-			group.TotalSizeBytes += item.SizeBytes
-			group.TotalReclaimableBytes += item.SizeBytes
+			add(item)
 		}
 	}
 
@@ -120,9 +123,7 @@ func (p *SystemMaintenanceProbe) Scan(ctx context.Context, cfg *config.Config) (
 				CleanType:     model.CleanTypeRemovePath,
 				CleanPath:     xcodeCacheDir,
 			}
-			group.Items = append(group.Items, item)
-			group.TotalSizeBytes += xcSize
-			group.TotalReclaimableBytes += xcSize
+			add(item)
 		}
 	}
 
@@ -130,10 +131,6 @@ func (p *SystemMaintenanceProbe) Scan(ctx context.Context, cfg *config.Config) (
 	targets := browserCacheTargets(home)
 	targets = append(targets, electronCacheTargets(home)...)
 
-	rc := newRunningChecker()
-
-	var mu sync.Mutex
-	var wg sync.WaitGroup
 	for _, t := range targets {
 		t := t
 		wg.Add(1)
@@ -152,14 +149,11 @@ func (p *SystemMaintenanceProbe) Scan(ctx context.Context, cfg *config.Config) (
 			}
 			if running {
 				item.Risk = model.RiskRebuildable
+				item.Running = true
 				item.Title += i18n.T(" (Running)", "（运行中）")
 				item.Description = i18n.T("App is running, skipped by quick clean. Quit the app before cleaning to avoid page reloads. ", "应用正在运行，快速清理已自动跳过；建议退出应用后再勾选清理，避免页面重新加载。") + item.Description
 			}
-			mu.Lock()
-			group.Items = append(group.Items, item)
-			group.TotalSizeBytes += item.SizeBytes
-			group.TotalReclaimableBytes += item.SizeBytes
-			mu.Unlock()
+			add(item)
 		}()
 	}
 	wg.Wait()

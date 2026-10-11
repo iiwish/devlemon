@@ -68,6 +68,8 @@ public struct Item: Codable, Identifiable, Hashable, Equatable {
     public var category: ItemCategory
     public var isProtected: Bool
     public var protectReason: String?
+    /// 所属应用运行中，快速清理已跳过
+    public var running: Bool?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -80,6 +82,7 @@ public struct Item: Codable, Identifiable, Hashable, Equatable {
         case category
         case isProtected = "is_protected"
         case protectReason = "protect_reason"
+        case running
     }
 
     public static func == (lhs: Item, rhs: Item) -> Bool {

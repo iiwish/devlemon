@@ -27,6 +27,7 @@ func NewEngine(cfg *config.Config) *Engine {
 			probe.NewSimulatorProbe(),
 			probe.NewCacheProbe(),
 			probe.NewWorkspaceProbe(),
+			probe.NewLeftoverProbe(),
 			probe.NewManualReviewProbe(),
 		},
 	}
@@ -44,6 +45,8 @@ func (e *Engine) Scan(ctx context.Context) (*model.ScanReport, error) {
 		Groups:    make([]*model.Group, 0),
 		ScannedAt: time.Now(),
 	}
+
+	probe.ResetScanCaches()
 
 	// 1. 读取系统磁盘状态（优先查询 /System/Volumes/Data）
 	readDiskStats(report)
@@ -107,10 +110,13 @@ func (e *Engine) Scan(ctx context.Context) (*model.ScanReport, error) {
 		model.CategoryWorkspaceBuild: 6, // 📂 项目构建产物与依赖
 	}
 
-	// 需手动确认的保守项分组始终排在最后
+	// 应用残留与需手动确认的保守项分组始终排在最后
 	groupRank := func(g *model.Group) int {
-		if g.ID == probe.ManualReviewGroupID {
+		switch g.ID {
+		case probe.LeftoverGroupID:
 			return len(categoryOrder) + 1
+		case probe.ManualReviewGroupID:
+			return len(categoryOrder) + 2
 		}
 		return categoryOrder[g.Category]
 	}

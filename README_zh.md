@@ -8,7 +8,7 @@
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square" alt="License"></a>
     <a href="https://golang.org"><img src="https://img.shields.io/badge/Go-1.24+-00ADD8.svg?style=flat-square&logo=go" alt="Go Version"></a>
     <a href="https://apple.com/macos"><img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey.svg?style=flat-square&logo=apple" alt="Platform"></a>
-    <a href="https://github.com/iiwish/devlemon/releases"><img src="https://img.shields.io/badge/release-v0.2.11-emerald.svg?style=flat-square" alt="Release"></a>
+    <a href="https://github.com/iiwish/devlemon/releases"><img src="https://img.shields.io/badge/release-v0.2.12-emerald.svg?style=flat-square" alt="Release"></a>
     <a href="#readme"><img src="https://img.shields.io/badge/alias-dl-yellow.svg?style=flat-square" alt="Alias"></a>
     <a href="#readme"><img src="https://img.shields.io/badge/size-%3C%204MB-orange.svg?style=flat-square" alt="Binary Size"></a>
   </p>
@@ -58,6 +58,7 @@ go install github.com/iiwish/devlemon/cmd/devlemon@latest
 | **`dl scan --json`** | 输出标准 JSON 格式 (供脚本调用或原生 GUI 渲染) |
 | **`dl clean --safe`** | 一键安全清理 100% 绝对安全的缓存与包管理器文件 |
 | **`dl clean --dry-run`** | 预演模式，仅模拟清理过程，不真正删除任何文件 |
+| **`dl analyze ~/Library`** | 分析目录占用，按体积列出最大的子项（默认主目录） |
 
 ### 4. 运行 macOS 原生 SwiftUI 客户端 (菜单栏浮窗 + 深度清理)
 

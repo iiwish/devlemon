@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -45,7 +46,7 @@ var libraryCachesSkip = map[string]bool{
 	"CodexBar": true,
 	// 已由 CacheProbe 覆盖
 	"go-build": true, "pnpm": true, "pip": true, "Homebrew": true, "ms-playwright": true,
-	"CocoaPods": true, "node-gyp": true, "com.microsoft.VSCode.ShipIt": true,
+	"CocoaPods": true, "node-gyp": true,
 	// 已由 AppCacheProbe 覆盖
 	"com.microsoft.VSCode": true, "Codex": true, "com.tencent.xinWeChat": true, "com.netease.163music": true,
 	// 已由浏览器规则 / SystemMaintenanceProbe 覆盖
@@ -131,6 +132,9 @@ func (p *ManualReviewProbe) Scan(ctx context.Context, cfg *config.Config) (*mode
 	// 3. Electron 应用的 Service Worker 离线数据
 	for _, t := range electronCacheTargets(home) {
 		t := t
+		if isLeftoverName(filepath.Base(t.userDataRoot)) {
+			continue // 已卸载应用的离线数据随残留一并统计
+		}
 		run(func() {
 			add(newCacheItem("electron_sw_"+strings.TrimPrefix(t.id, "electron_cache_"),
 				fmt.Sprintf("%s (%s)", i18n.T("App Offline Data (Service Worker)", "应用离线数据 (Service Worker)"), filepath.Base(t.userDataRoot)),
@@ -138,31 +142,75 @@ func (p *ManualReviewProbe) Scan(ctx context.Context, cfg *config.Config) (*mode
 		})
 	}
 
-	// 4. 过期临时文件：用户临时目录中 7 天以上未修改的条目
+	// 4. Xcode 归档：含发布版本的 dSYM 符号文件，删除后无法再符号化线上崩溃
+	run(func() {
+		dir := filepath.Join(home, "Library", "Developer", "Xcode", "Archives")
+		add(newCacheItem("xcode_archives",
+			i18n.T("Xcode Archives", "Xcode 打包归档 (Archives)"),
+			i18n.T("App builds archived for distribution, including dSYM symbols. Keep the ones you may need to symbolicate crash reports of released versions.", "为发布打包的应用归档，内含 dSYM 符号文件；已发布版本的归档用于解析线上崩溃，请确认不再需要后再勾选"),
+			childPaths(dir, nil), 50*1024*1024, model.RiskCaution))
+	})
+
+	// 5. iOS 设备本地备份：真实用户数据，可能是设备的唯一备份
+	for _, backup := range childPaths(filepath.Join(home, "Library", "Application Support", "MobileSync", "Backup"), nil) {
+		backup := backup
+		run(func() {
+			name := backupDeviceName(backup)
+			add(newCacheItem("ios_backup_"+filepath.Base(backup),
+				fmt.Sprintf("%s (%s)", i18n.T("iPhone / iPad Local Backup", "iPhone / iPad 本地备份"), name),
+				i18n.T("Device backup made by Finder. This may be the only copy of the device's data; delete only backups of devices you no longer need.", "Finder 生成的设备备份，可能是设备数据的唯一副本；仅删除确定不再需要的旧设备备份"),
+				[]string{backup}, 100*1024*1024, model.RiskCaution))
+		})
+	}
+
+	// 6. 过期临时文件：用户临时目录中 7 天以上未修改的条目
 	run(func() { add(scanStaleTempFiles()) })
 
-	// 5. ~/Library/Caches 下其他应用缓存：按 Apple 规范可清除，但个别应用会违规存放数据，必须逐项确认
+	// 7. ~/Library/Caches 下其他应用缓存：按 Apple 规范可清除，但个别应用会违规存放数据，必须逐项确认
+	// 更新安装包由 SystemMaintenanceProbe 统计：整个目录被覆盖则跳过，仅子目录被覆盖则统计其余子项
 	cachesDir := filepath.Join(home, "Library", "Caches")
+	claimed := updaterClaimed(cachesDir)
 	if entries, err := os.ReadDir(cachesDir); err == nil {
 		for _, e := range entries {
 			name := e.Name()
-			if !e.IsDir() || libraryCachesSkip[name] || strings.HasPrefix(name, "com.apple.") ||
-				strings.HasSuffix(name, "-updater") || strings.Contains(name, "desktop-updater") ||
+			dir := filepath.Join(cachesDir, name)
+			if !e.IsDir() || libraryCachesSkip[name] || claimed[dir] || isLeftoverName(name) || strings.HasPrefix(name, "com.apple.") ||
 				strings.Contains(strings.ToLower(name), "devlemon") {
 				continue
 			}
-			dir := filepath.Join(cachesDir, name)
+			skip := make(map[string]bool)
+			for p := range claimed {
+				if filepath.Dir(p) == dir {
+					skip[filepath.Base(p)] = true
+				}
+			}
+			paths := []string{dir}
+			if len(skip) > 0 {
+				paths = childPaths(dir, skip)
+			}
 			run(func() {
 				add(newCacheItem("other_cache_"+name,
 					fmt.Sprintf("%s (%s)", i18n.T("Other App Cache", "其他应用缓存"), name),
 					i18n.T("Cache folder in ~/Library/Caches. Usually rebuildable, but a few apps store data here; confirm you recognize this app before cleaning.", "~/Library/Caches 下的应用缓存，通常可自动重建；但少数应用会在此存放数据，请确认认识该应用后再勾选"),
-					[]string{dir}, 20*1024*1024, model.RiskCaution))
+					paths, 20*1024*1024, model.RiskCaution))
 			})
 		}
 	}
 
 	wg.Wait()
 	return group, nil
+}
+
+var backupDeviceNameRe = regexp.MustCompile(`<key>Device Name</key>\s*<string>([^<]+)</string>`)
+
+// backupDeviceName 从备份的 Info.plist 读取设备名，读不到时回退为备份目录名
+func backupDeviceName(backup string) string {
+	if data, err := os.ReadFile(filepath.Join(backup, "Info.plist")); err == nil {
+		if m := backupDeviceNameRe.FindSubmatch(data); m != nil {
+			return string(m[1])
+		}
+	}
+	return filepath.Base(backup)
 }
 
 func serviceWorkerDesc() string {

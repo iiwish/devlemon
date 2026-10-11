@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"devlemon/internal/config"
@@ -30,6 +31,7 @@ type cacheTarget struct {
 	title       string
 	description string
 	subpath     string
+	absPath     string // 不在主目录下的绝对路径（优先于 subpath）
 	risk        model.RiskLevel
 	cleanCmd    []string
 }
@@ -97,13 +99,6 @@ func (p *CacheProbe) Scan(ctx context.Context, cfg *config.Config) (*model.Group
 			cleanCmd:    []string{"brew", "cleanup", "-s"},
 		},
 		{
-			id:          "vscode_shipit",
-			title:       i18n.T("VS Code ShipIt Update Cache", "VS Code 软件更新临时安装包"),
-			description: i18n.T("Residual update installer archives in Caches directory", "VS Code 自动更新后遗留在 Caches 里的更新安装包"),
-			subpath:     filepath.Join("Library", "Caches", "com.microsoft.VSCode.ShipIt"),
-			risk:        model.RiskSafe,
-		},
-		{
 			id:          "playwright_browsers",
 			title:       i18n.T("Playwright Headless Browsers", "Playwright 自动化无头浏览器包"),
 			description: i18n.T("Chromium/WebKit standalone browser binaries for E2E tests", "用于 E2E 自动化测试的 Chromium/WebKit 独立浏览器包"),
@@ -125,12 +120,37 @@ func (p *CacheProbe) Scan(ctx context.Context, cfg *config.Config) (*model.Group
 			risk:        model.RiskRebuildable,
 		},
 		{
+			id:          "ios_firmware",
+			title:       i18n.T("iOS / iPadOS Firmware Downloads", "iOS / iPadOS 固件安装包 (.ipsw)"),
+			description: i18n.T("Firmware downloaded by Finder when updating or restoring devices; re-downloaded when needed", "Finder 更新或恢复设备时下载的系统固件，用完即可删除，需要时重新下载"),
+			subpath:     filepath.Join("Library", "iTunes", "iPhone Software Updates"),
+			risk:        model.RiskRebuildable,
+		},
+		{
+			id:          "ipados_firmware",
+			title:       i18n.T("iPad Firmware Downloads", "iPad 固件安装包 (.ipsw)"),
+			description: i18n.T("Firmware downloaded by Finder when updating or restoring devices; re-downloaded when needed", "Finder 更新或恢复设备时下载的系统固件，用完即可删除，需要时重新下载"),
+			subpath:     filepath.Join("Library", "iTunes", "iPad Software Updates"),
+			risk:        model.RiskRebuildable,
+		},
+		{
 			id:          "nodegyp_cache",
 			title:       i18n.T("node-gyp Header Cache", "node-gyp 原生模块编译头文件缓存"),
 			description: i18n.T("Node.js C++ header files for compiling native addons", "编译 Node 原生扩展下载的 C++ 头文件缓存"),
 			subpath:     filepath.Join("Library", "Caches", "node-gyp"),
 			risk:        model.RiskRebuildable,
 		},
+	}
+
+	// clang 模块缓存位于每用户缓存目录 ($TMPDIR 同级的 C/)，Xcode / swiftc / clang 编译时按需重建
+	if tmp := filepath.Clean(os.TempDir()); strings.HasPrefix(tmp, "/var/folders/") || strings.HasPrefix(tmp, "/private/var/folders/") {
+		targets = append(targets, cacheTarget{
+			id:          "clang_module_cache",
+			title:       i18n.T("Clang Module Cache", "Clang 预编译模块缓存"),
+			description: i18n.T("Precompiled module cache shared by Xcode, swiftc and clang; rebuilt on the next compile", "Xcode / swiftc / clang 共用的预编译模块缓存，下次编译时自动重建"),
+			absPath:     filepath.Join(filepath.Dir(tmp), "C", "clang", "ModuleCache"),
+			risk:        model.RiskRebuildable,
+		})
 	}
 
 	group := &model.Group{
@@ -145,10 +165,13 @@ func (p *CacheProbe) Scan(ctx context.Context, cfg *config.Config) (*model.Group
 
 	for _, tgt := range targets {
 		tgt := tgt
-		if tgt.subpath == "" || tgt.subpath == "." {
-			continue
+		fullPath := tgt.absPath
+		if fullPath == "" {
+			if tgt.subpath == "" || tgt.subpath == "." {
+				continue
+			}
+			fullPath = filepath.Join(home, tgt.subpath)
 		}
-		fullPath := filepath.Join(home, tgt.subpath)
 		if fullPath == home {
 			continue
 		}

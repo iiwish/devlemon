@@ -66,8 +66,34 @@ func (p *AppCacheProbe) Scan(ctx context.Context, cfg *config.Config) (*model.Gr
 			risk:        model.RiskRebuildable,
 			paths: []string{
 				filepath.Join(home, "Library", "Developer", "Xcode", "iOS DeviceLogs"),
+				filepath.Join(home, "Library", "Developer", "Xcode", "iOS Device Logs"),
+				filepath.Join(home, "Library", "Developer", "Xcode", "DeviceLogs"),
 			},
 			minSize: 5 * 1024 * 1024,
+		},
+		{
+			id:          "xcode_device_support",
+			title:       i18n.T("Xcode Device Support Files", "Xcode 真机调试符号文件 (Device Support)"),
+			description: i18n.T("Debug symbols copied from connected iOS/watchOS/macOS devices, one folder per OS version. Re-copied automatically the next time that device connects", "连接真机调试时从设备拷贝的系统符号，每个系统版本一份；旧版本通常已无用，下次连接对应设备时自动重新拷贝"),
+			risk:        model.RiskRebuildable,
+			paths: []string{
+				filepath.Join(home, "Library", "Developer", "Xcode", "iOS DeviceSupport"),
+				filepath.Join(home, "Library", "Developer", "Xcode", "watchOS DeviceSupport"),
+				filepath.Join(home, "Library", "Developer", "Xcode", "tvOS DeviceSupport"),
+				filepath.Join(home, "Library", "Developer", "Xcode", "macOS DeviceSupport"),
+				filepath.Join(home, "Library", "Developer", "Xcode", "visionOS DeviceSupport"),
+			},
+			minSize: 50 * 1024 * 1024,
+		},
+		{
+			id:          "xcode_documentation_cache",
+			title:       i18n.T("Xcode Documentation Cache", "Xcode 开发文档缓存"),
+			description: i18n.T("Downloaded developer documentation, re-downloaded on demand", "Xcode 下载的开发者文档缓存，按需重新下载"),
+			risk:        model.RiskRebuildable,
+			paths: []string{
+				filepath.Join(home, "Library", "Developer", "Xcode", "DocumentationCache"),
+			},
+			minSize: 10 * 1024 * 1024,
 		},
 		// 2. VSCode 缓存与日志
 		{
@@ -190,6 +216,7 @@ func (p *AppCacheProbe) Scan(ctx context.Context, cfg *config.Config) (*model.Gr
 			risk:        model.RiskRebuildable,
 			paths: []string{
 				filepath.Join(home, "Library", "Containers", "com.apple.mail", "Data", "Library", "Caches"),
+				filepath.Join(home, "Library", "Containers", "com.apple.mail", "Data", "Library", "Mail Downloads"),
 			},
 			minSize: 5 * 1024 * 1024,
 		},
@@ -261,5 +288,3 @@ func (p *AppCacheProbe) Scan(ctx context.Context, cfg *config.Config) (*model.Gr
 
 	return group, nil
 }
-
-

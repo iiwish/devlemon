@@ -54,6 +54,8 @@ type Item struct {
 	// 运行态保护机制
 	IsProtected   bool   `json:"is_protected"`
 	ProtectReason string `json:"protect_reason,omitempty"`
+	// Running 所属应用运行中，因此不进入快速清理（UI 据此提示被跳过的体积）
+	Running bool `json:"running,omitempty"`
 
 	// 清理动作定义
 	CleanType    CleanType `json:"clean_type"`

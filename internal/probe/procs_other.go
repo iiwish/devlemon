@@ -6,3 +6,8 @@ package probe
 func processNames() (map[string]bool, bool) {
 	return nil, false
 }
+
+// runningAppBundles 非 macOS 平台没有 .app 包，调用方据此保守视为运行中
+func runningAppBundles() (map[string]bool, bool) {
+	return nil, false
+}

@@ -130,11 +130,44 @@ func fcntlLockHeld(path string) bool {
 type runningChecker struct {
 	procNames map[string]bool // 进程名（内核 p_comm，最长 16 字符）
 	procsOK   bool
+	apps      []runningApp // 运行中的 .app 包
+	appsOK    bool
+}
+
+type runningApp struct {
+	path, bundleID, nameKey string
 }
 
 func newRunningChecker() *runningChecker {
 	names, ok := processNames()
-	return &runningChecker{procNames: names, procsOK: ok}
+	rc := &runningChecker{procNames: names, procsOK: ok}
+	bundles, appsOK := runningAppBundles()
+	rc.appsOK = appsOK
+	for b := range bundles {
+		rc.apps = append(rc.apps, runningApp{
+			path:     b,
+			bundleID: appBundleInfo(b, "CFBundleIdentifier"),
+			nameKey:  appNameKey(strings.TrimSuffix(filepath.Base(b), ".app")),
+		})
+	}
+	return rc
+}
+
+// appRunning 判断某应用是否运行中：依次按 .app 路径、Bundle ID、归一化应用名匹配；
+// 运行中的应用列表不可读时保守视为运行中
+func (rc *runningChecker) appRunning(bundleID, appPath, nameHint string) bool {
+	if !rc.appsOK {
+		return true
+	}
+	key := appNameKey(nameHint)
+	for _, a := range rc.apps {
+		if (appPath != "" && a.path == appPath) ||
+			(bundleID != "" && strings.EqualFold(a.bundleID, bundleID)) ||
+			(key != "" && a.nameKey == key) {
+			return true
+		}
+	}
+	return false
 }
 
 // chromiumRunning 判断 Chromium/Electron 应用是否运行中：SingletonLock 指向存活进程，

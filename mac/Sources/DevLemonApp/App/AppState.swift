@@ -27,6 +27,8 @@ public final class AppState: ObservableObject {
     // 快捷清理状态 (用于下拉菜单快捷卡片)
     @Published public var quickCleanStatus: QuickCleanStatus = .idle
     @Published public var safeReclaimableBytes: Int64 = 0
+    /// 因所属应用运行中而未计入快速清理的体积
+    @Published public var runningSkippedBytes: Int64 = 0
     @Published public var hasCheckedSafeClean: Bool = false
 
     // 结果搜索与排序过滤
@@ -138,13 +140,19 @@ public final class AppState: ObservableObject {
             do {
                 let report = try await CLIBridge.shared.scan(safeOnly: true)
                 var safeBytes: Int64 = 0
+                var runningBytes: Int64 = 0
                 for grp in report.groups {
-                    for item in grp.items where !item.isProtected && item.risk == .safe {
-                        safeBytes += item.sizeBytes
+                    for item in grp.items where !item.isProtected {
+                        if item.risk == .safe {
+                            safeBytes += item.sizeBytes
+                        } else if item.running == true {
+                            runningBytes += item.sizeBytes
+                        }
                     }
                 }
                 await MainActor.run {
                     self.safeReclaimableBytes = safeBytes
+                    self.runningSkippedBytes = runningBytes
                     self.hasCheckedSafeClean = true
                 }
             } catch {

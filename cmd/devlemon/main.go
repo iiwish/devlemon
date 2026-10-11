@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
 	"runtime"
 	"strings"
 
+	"devlemon/internal/analyze"
 	"devlemon/internal/cleaner"
 	"devlemon/internal/config"
 	"devlemon/internal/engine"
@@ -39,6 +41,8 @@ func main() {
 		handleScan(os.Args[2:])
 	case "clean":
 		handleClean(os.Args[2:])
+	case "analyze":
+		handleAnalyze(os.Args[2:])
 	case "version", "-v", "--version":
 		fmt.Printf("devlemon %s (%s/%s)\n", version.Version, runtime.GOOS, runtime.GOARCH)
 	case "help", "-h", "--help":
@@ -61,6 +65,7 @@ func printUsage() {
   tui     启动全屏交互式终端仪表盘 (默认)
   scan    扫描当前系统的可清理缓存与构建产物
   clean   执行清理操作
+  analyze 分析目录占用，按体积列出最大的子项 (默认主目录)
   version 查看版本信息
 
 通用参数 (scan / clean 均支持):
@@ -72,6 +77,7 @@ func printUsage() {
 示例:
   dl                      # 启动全屏交互 TUI
   dl scan                 # 快速扫描并输出报告
+  dl analyze ~/Library    # 查看 ~/Library 下哪些目录最占空间
   dl scan --json          # 输出机器可读 JSON
   dl clean --safe         # 快速清理安全缓存
   dl clean --dry-run      # 模拟预演`)
@@ -85,6 +91,7 @@ Commands:
   tui     Launch interactive fullscreen terminal dashboard (default)
   scan    Scan reclaimable caches and build artifacts
   clean   Clean detected reclaimable resources
+  analyze Show the largest items under a directory (default: home)
   version Show version information
 
 Options:
@@ -96,6 +103,7 @@ Options:
 Examples:
   dl                      # Launch interactive TUI
   dl scan                 # Scan and display terminal summary
+  dl analyze ~/Library    # Find what takes up space in ~/Library
   dl scan --json          # Output machine-readable JSON
   dl clean --safe         # Clean 100% safe caches
   dl clean --dry-run      # Simulate cleanup`)
@@ -249,6 +257,56 @@ func handleClean(args []string) {
 			}
 		}
 	}
+}
+
+func handleAnalyze(args []string) {
+	fs := flag.NewFlagSet("analyze", flag.ExitOnError)
+	jsonMode := fs.Bool("json", false, "输出 JSON 格式")
+	top := fs.Int("top", 20, "显示最大的前 N 项")
+	// 允许路径写在参数前面：dl analyze ~/Library --top 10
+	var dir string
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		dir, args = args[0], args[1:]
+	}
+	_ = fs.Parse(args)
+	if dir == "" {
+		dir = fs.Arg(0)
+	}
+	if dir == "" {
+		dir = "~"
+	}
+	dir = config.ExpandHome(dir)
+
+	res, err := analyze.Dir(context.Background(), dir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", i18n.T("Analyze failed", "分析失败"), err)
+		os.Exit(1)
+	}
+	if *top > 0 && len(res.Entries) > *top {
+		res.Entries = res.Entries[:*top]
+	}
+	if *jsonMode {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		_ = enc.Encode(res)
+		return
+	}
+
+	fmt.Printf("\n📊 %s  \033[1m%s\033[0m\n", res.Path, model.FormatBytes(res.SizeBytes))
+	fmt.Println(strings.Repeat("─", 65))
+	for _, e := range res.Entries {
+		pct := 0.0
+		if res.SizeBytes > 0 {
+			pct = float64(e.SizeBytes) / float64(res.SizeBytes) * 100
+		}
+		bar := strings.Repeat("█", int(pct/5+0.5))
+		name := e.Name
+		if e.IsDir {
+			name += "/"
+		}
+		fmt.Printf("%10s %5.1f%%  %-20s %s\n", model.FormatBytes(e.SizeBytes), pct, bar, name)
+	}
+	fmt.Println()
 }
 
 func sumItems(items []*model.Item) int64 {
