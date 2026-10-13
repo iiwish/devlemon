@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MAC_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 REPO_DIR="$(cd "${MAC_DIR}/.." && pwd)"
 OUTPUT_DIR="${REPO_DIR}/build"
-VERSION="0.2.13"
+VERSION="0.2.14"
 APP_NAME="DevLemon.app"
 
 echo "🚀 构建 DevLemon.app [Sparkle 2.0 + CLI 自动软链接]..."
@@ -85,6 +85,8 @@ cat << EOF > "${APP_BUNDLE}/Contents/Info.plist"
     <string>NSApplication</string>
     <key>LSUIElement</key>
     <false/>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>DevLemon 需要控制访达来统计并清空废纸篓。</string>
     <key>SUFeedURL</key>
     <string>https://raw.githubusercontent.com/iiwish/devlemon/main/appcast.xml</string>
     <key>SUPublicEDKey</key>
@@ -100,5 +102,26 @@ cat << EOF > "${APP_BUNDLE}/Contents/Info.plist"
 EOF
 
 echo "🔏 [5/5] Codesigning bundle..."
-codesign --force --deep --sign - "${APP_BUNDLE}" 2>/dev/null || true
-echo "✨ Successfully created release bundle: ${APP_BUNDLE}"
+# DEVLEMON_SIGN_IDENTITY 未设置时使用临时签名（本地开发）；
+# 发布时设为 "Developer ID Application: ..."，按 Sparkle 官方要求由内到外逐个签名并启用强化运行时（公证必需）
+SIGN_IDENTITY="${DEVLEMON_SIGN_IDENTITY:--}"
+if [[ "${SIGN_IDENTITY}" == "-" ]]; then
+    codesign --force --deep --sign - "${APP_BUNDLE}" 2>/dev/null || true
+    echo "✨ Successfully created ad-hoc signed bundle: ${APP_BUNDLE}"
+else
+    sign() {
+        codesign --force --timestamp --options runtime --sign "${SIGN_IDENTITY}" "$@"
+    }
+    SPARKLE="${APP_BUNDLE}/Contents/Frameworks/Sparkle.framework"
+    if [[ -d "${SPARKLE}" ]]; then
+        sign "${SPARKLE}/Versions/B/XPCServices/Installer.xpc"
+        sign --preserve-metadata=entitlements "${SPARKLE}/Versions/B/XPCServices/Downloader.xpc"
+        sign "${SPARKLE}/Versions/B/Autoupdate"
+        sign "${SPARKLE}/Versions/B/Updater.app"
+        sign "${SPARKLE}"
+    fi
+    sign "${APP_BUNDLE}/Contents/Helpers/devlemon"
+    sign --entitlements "${MAC_DIR}/Resources/DevLemon.entitlements" "${APP_BUNDLE}"
+    codesign --verify --deep --strict --verbose=2 "${APP_BUNDLE}"
+    echo "✨ Successfully created bundle signed by ${SIGN_IDENTITY}: ${APP_BUNDLE}"
+fi

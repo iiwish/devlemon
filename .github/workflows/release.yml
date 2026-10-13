@@ -73,14 +73,62 @@ jobs:
           go-version: '1.24'
           cache: true
 
-      - name: Build & Package DevLemon.app
+      # 导入 Developer ID Application 证书到临时钥匙串。缺少证书时直接失败：
+      # 临时签名的 App 每次更新都会被系统当作新应用，用户已授予的权限全部失效
+      - name: Import Developer ID certificate
+        env:
+          CERT_P12: ${{ secrets.DEVELOPER_ID_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_CERT_PASSWORD }}
+        run: |
+          if [[ -z "$CERT_P12" || -z "$CERT_PASSWORD" ]]; then
+            echo "::error::DEVELOPER_ID_CERT_P12 / DEVELOPER_ID_CERT_PASSWORD secrets are not set; cannot sign DevLemon.app"
+            exit 1
+          fi
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -base64 24)"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          echo "$CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          rm -f "$RUNNER_TEMP/cert.p12"
+          # Developer ID 中间证书，保证 codesign 能构建完整证书链
+          curl -fsSL -o "$RUNNER_TEMP/DeveloperIDG2CA.cer" https://www.apple.com/certificateauthority/DeveloperIDG2CA.cer
+          security import "$RUNNER_TEMP/DeveloperIDG2CA.cer" -k "$KEYCHAIN" || true
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN" | grep "Developer ID Application" | head -n 1 | awk -F'"' '{print $2}')
+          if [[ -z "$IDENTITY" ]]; then
+            echo "::error::No 'Developer ID Application' identity found in the imported certificate"
+            exit 1
+          fi
+          echo "DEVLEMON_SIGN_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+
+      - name: Build & Sign DevLemon.app
         run: bash mac/scripts/build_app.sh
 
-      - name: Create macOS Release Archives
+      - name: Notarize & Create macOS Release Archive
+        # 公证凭据二选一：App Store Connect API 密钥（优先），或 Apple ID + App 专用密码
+        env:
+          NOTARY_KEY_P8: ${{ secrets.NOTARY_KEY_P8 }}
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.NOTARY_ISSUER_ID }}
+          NOTARY_APPLE_ID: ${{ secrets.NOTARY_APPLE_ID }}
+          NOTARY_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}
+          NOTARY_TEAM_ID: 38S76J82P4
         run: |
           TAG=${GITHUB_REF#refs/tags/}
           mkdir -p dist
-          ditto -c -k --sequesterRsrc --keepParent build/DevLemon.app "dist/DevLemon-${TAG}-macOS.zip"
+          if [[ -n "$NOTARY_KEY_P8" && -n "$NOTARY_KEY_ID" && -n "$NOTARY_ISSUER_ID" ]]; then
+            export NOTARY_KEY_PATH="$RUNNER_TEMP/AuthKey.p8"
+            printf '%s' "$NOTARY_KEY_P8" > "$NOTARY_KEY_PATH"
+            unset NOTARY_APPLE_ID NOTARY_PASSWORD
+          elif [[ -z "$NOTARY_APPLE_ID" || -z "$NOTARY_PASSWORD" ]]; then
+            echo "::error::Notarization credentials are not set: configure NOTARY_KEY_P8 / NOTARY_KEY_ID / NOTARY_ISSUER_ID, or NOTARY_APPLE_ID / NOTARY_PASSWORD"
+            exit 1
+          fi
+          bash mac/scripts/notarize.sh build/DevLemon.app "dist/DevLemon-${TAG}-macOS.zip"
+          rm -f "$RUNNER_TEMP/AuthKey.p8"
 
       - name: Generate signed Sparkle appcast.xml
         env:
@@ -115,6 +163,10 @@ jobs:
           path: |
             dist/*.zip
             dist/appcast.xml
+
+      - name: Remove signing keychain
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/signing.keychain-db" 2>/dev/null || true
 
   publish-release:
     name: Publish GitHub Release

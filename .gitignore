@@ -30,3 +30,12 @@ mac/.build/
 # Config
 config.yaml
 mac/Resources/sparkle_keys.json
+
+# Signing & notarization credentials (never commit)
+*.p12
+*.p8
+*.cer
+*.provisionprofile
+
+# Xcode workspace data for Swift packages
+.swiftpm/
