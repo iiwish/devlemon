@@ -92,14 +92,18 @@ jobs:
           echo "$CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
           security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$CERT_PASSWORD" -T /usr/bin/codesign
           rm -f "$RUNNER_TEMP/cert.p12"
-          # Developer ID 中间证书，保证 codesign 能构建完整证书链
-          curl -fsSL -o "$RUNNER_TEMP/DeveloperIDG2CA.cer" https://www.apple.com/certificateauthority/DeveloperIDG2CA.cer
-          security import "$RUNNER_TEMP/DeveloperIDG2CA.cer" -k "$KEYCHAIN" || true
+          # Developer ID 中间证书（旧版 G1 与 G2 都导入，证书可能由任一签发），保证证书链完整、身份被判为有效
+          for CA in DeveloperIDCA DeveloperIDG2CA; do
+            curl -fsSL -o "$RUNNER_TEMP/$CA.cer" "https://www.apple.com/certificateauthority/$CA.cer"
+            security import "$RUNNER_TEMP/$CA.cer" -k "$KEYCHAIN" || true
+          done
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
           security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
           IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN" | grep "Developer ID Application" | head -n 1 | awk -F'"' '{print $2}')
           if [[ -z "$IDENTITY" ]]; then
-            echo "::error::No 'Developer ID Application' identity found in the imported certificate"
+            echo "::error::No valid 'Developer ID Application' identity found in the imported certificate"
+            # 列出全部身份（含无效原因），便于排查证书链或导出错误
+            security find-identity -p codesigning "$KEYCHAIN"
             exit 1
           fi
           echo "DEVLEMON_SIGN_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
