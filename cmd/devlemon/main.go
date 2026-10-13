@@ -24,6 +24,7 @@ func main() {
 	// 如果不带参数直接运行 devlemon，或显式指定 tui / -i，默认启动全屏交互式 TUI
 	if len(os.Args) == 1 || (len(os.Args) >= 2 && (os.Args[1] == "tui" || os.Args[1] == "-i")) {
 		cfg := config.DefaultConfig()
+		cfg.DiscoverWorkspaces()
 		if err := tui.RunTUI(cfg); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", i18n.T("TUI error", "TUI 启动异常"), err)
 			os.Exit(1)
@@ -36,6 +37,7 @@ func main() {
 	switch subcommand {
 	case "tui", "-i":
 		cfg := config.DefaultConfig()
+		cfg.DiscoverWorkspaces()
 		_ = tui.RunTUI(cfg)
 	case "scan":
 		handleScan(os.Args[2:])
@@ -114,7 +116,6 @@ func handleScan(args []string) {
 	fs := flag.NewFlagSet("scan", flag.ExitOnError)
 	jsonMode := fs.Bool("json", false, "输出 JSON 格式")
 	safeOnly := fs.Bool("safe", false, "仅扫描绝对安全项")
-	sandboxMode := fs.Bool("sandbox", false, "启用沙盒兼容模式 (适配 Mac App Store 规范)")
 	var workspaces string
 	fs.StringVar(&workspaces, "workspace", "", "指定扫描的工作区根目录 (多个目录用逗号隔开)")
 
@@ -122,8 +123,9 @@ func handleScan(args []string) {
 
 	cfg := config.DefaultConfig()
 	cfg.SafeOnly = *safeOnly
-	if *sandboxMode {
-		cfg.SandboxMode = true
+	// 快速清理只扫描系统缓存，不遍历主目录寻找工作区
+	if !cfg.SafeOnly {
+		cfg.DiscoverWorkspaces()
 	}
 	if workspaces != "" {
 		for _, w := range strings.Split(workspaces, ",") {
@@ -154,7 +156,6 @@ func handleClean(args []string) {
 	safeOnly := fs.Bool("safe", false, "仅清理 100% 绝对安全项")
 	dryRun := fs.Bool("dry-run", false, "仅模拟演练，不真正删除")
 	jsonMode := fs.Bool("json", false, "输出 JSON 格式")
-	sandboxMode := fs.Bool("sandbox", false, "启用沙盒兼容模式 (适配 Mac App Store 规范)")
 	var itemsFilter string
 	fs.StringVar(&itemsFilter, "items", "", "指定要清理的 Item ID 列表 (英文逗号隔开)")
 	var workspaces string
@@ -164,8 +165,9 @@ func handleClean(args []string) {
 
 	cfg := config.DefaultConfig()
 	cfg.SafeOnly = *safeOnly
-	if *sandboxMode {
-		cfg.SandboxMode = true
+	// 快速清理只扫描系统缓存，不遍历主目录寻找工作区
+	if !cfg.SafeOnly {
+		cfg.DiscoverWorkspaces()
 	}
 	if workspaces != "" {
 		for _, w := range strings.Split(workspaces, ",") {

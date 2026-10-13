@@ -8,6 +8,7 @@ public struct MenuBarPopoverView: View {
 
     @State private var isSettingsHovered = false
     @State private var isPowerHovered = false
+    @State private var showMemoryPanel = false
 
     public init(onOpenMainWindow: @escaping () -> Void) {
         self.onOpenMainWindow = onOpenMainWindow
@@ -83,10 +84,10 @@ public struct MenuBarPopoverView: View {
                     subtitle: monitor.memorySubtitle,
                     tintColor: .orange,
                     onTap: {
-                        openActivityMonitor()
+                        withAnimation(.easeInOut(duration: 0.2)) { showMemoryPanel.toggle() }
                     }
                 )
-                .help("点击打开系统活动监视器")
+                .help(showMemoryPanel ? "点击收起应用内存占用" : "点击查看各应用内存占用")
 
                 CircularGaugeView(
                     title: "主盘",
@@ -102,8 +103,15 @@ public struct MenuBarPopoverView: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 2)
 
-            // MARK: - 4. 实时网络波形图
-            NetworkSpeedGraph()
+            // MARK: - 4. 应用内存占用面板（点击内存仪表展开）/ 实时网络波形图
+            if showMemoryPanel {
+                AppMemoryPanel {
+                    withAnimation(.easeInOut(duration: 0.2)) { showMemoryPanel = false }
+                }
+                .transition(.opacity)
+            } else {
+                NetworkSpeedGraph()
+            }
 
             // MARK: - 5. 底部主操作区 (深度清理 & 打开主面板)
             HStack(spacing: 10) {
@@ -147,6 +155,13 @@ public struct MenuBarPopoverView: View {
         }
         .padding(16)
         .frame(width: 320)
+        .fixedSize(horizontal: false, vertical: true)
+        // MenuBarExtra 窗口只在打开时按内容定高，展开内存面板后需手动同步窗口高度，否则内容上下被裁切
+        .background(
+            GeometryReader { geo in
+                PopoverWindowHeightSync(height: geo.size.height)
+            }
+        )
         .background(
             WindowVisibilityTracker { isVisible in
                 let shouldBeActive = isVisible || MainWindowController.shared.isWindowVisible
@@ -315,6 +330,27 @@ public struct MenuBarPopoverView: View {
         } else {
             let path = "/System/Applications/Utilities/Activity Monitor.app"
             NSWorkspace.shared.open(URL(fileURLWithPath: path))
+        }
+    }
+}
+
+// MARK: - 浮窗高度同步：保持顶边贴住菜单栏，向下伸缩
+struct PopoverWindowHeightSync: NSViewRepresentable {
+    var height: CGFloat
+
+    func makeNSView(context: Context) -> NSView { NSView() }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        let target = height
+        DispatchQueue.main.async {
+            guard let window = nsView.window, target > 0 else { return }
+            let current = window.contentRect(forFrameRect: window.frame).height
+            guard abs(current - target) > 0.5 else { return }
+            var frame = window.frame
+            let top = frame.maxY
+            frame.size.height = window.frameRect(forContentRect: NSRect(x: 0, y: 0, width: frame.width, height: target)).height
+            frame.origin.y = top - frame.size.height
+            window.setFrame(frame, display: true, animate: false)
         }
     }
 }

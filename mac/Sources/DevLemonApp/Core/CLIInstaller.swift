@@ -13,36 +13,14 @@ public final class CLIInstaller: ObservableObject {
         checkStatus()
     }
 
-    /// 应用启动时默认自动检测并安装/同步 CLI 软链接 (非 App Store 直装版启用)
+    /// 应用启动时自动检测并安装/同步 CLI 软链接
     public func autoInstallIfNeeded() {
-        #if APP_STORE
-        // Mac App Store 规范：严禁沙盒应用启动时向用户 PATH 静默植入软链接
-        return
-        #else
         guard let binaryPath = resolveSourceBinaryPath() else {
             print("⚠️ 未找到应用内置 devlemon 二进制，跳过自动链接")
             return
         }
 
-        var shouldStopAccess = false
-        if SecurityBookmarkManager.shared.isSandboxed {
-            guard SecurityBookmarkManager.shared.hasAuthorization else {
-                checkStatus()
-                return
-            }
-            guard SecurityBookmarkManager.shared.startAccessing() else {
-                checkStatus()
-                return
-            }
-            shouldStopAccess = true
-        }
-        defer {
-            if shouldStopAccess {
-                SecurityBookmarkManager.shared.stopAccessing()
-            }
-        }
-
-        let home = SecurityBookmarkManager.shared.realHomeURL.path
+        let home = NSHomeDirectory()
         let localBin = (home as NSString).appendingPathComponent(".local/bin")
 
         // 确保 ~/.local/bin 目录存在
@@ -77,7 +55,6 @@ public final class CLIInstaller: ObservableObject {
         }
 
         checkStatus()
-        #endif
     }
 
     /// 手动重新安装或修复
@@ -89,22 +66,7 @@ public final class CLIInstaller: ObservableObject {
             return (false, msg)
         }
 
-        var shouldStopAccess = false
-        if SecurityBookmarkManager.shared.isSandboxed {
-            guard SecurityBookmarkManager.shared.startAccessing() else {
-                let msg = "沙盒环境下请先在设置中授权访问个人主目录"
-                self.lastMessage = msg
-                return (false, msg)
-            }
-            shouldStopAccess = true
-        }
-        defer {
-            if shouldStopAccess {
-                SecurityBookmarkManager.shared.stopAccessing()
-            }
-        }
-
-        let home = SecurityBookmarkManager.shared.realHomeURL.path
+        let home = NSHomeDirectory()
         let localBin = (home as NSString).appendingPathComponent(".local/bin")
         if !FileManager.default.fileExists(atPath: localBin) {
             try? FileManager.default.createDirectory(atPath: localBin, withIntermediateDirectories: true)
@@ -122,7 +84,7 @@ public final class CLIInstaller: ObservableObject {
     }
 
     public func checkStatus() {
-        let home = SecurityBookmarkManager.shared.realHomeURL.path
+        let home = NSHomeDirectory()
         let localBin = (home as NSString).appendingPathComponent(".local/bin")
         let devlemonLink = (localBin as NSString).appendingPathComponent("devlemon")
         let dlLink = (localBin as NSString).appendingPathComponent("dl")

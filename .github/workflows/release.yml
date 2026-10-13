@@ -73,17 +73,14 @@ jobs:
           go-version: '1.24'
           cache: true
 
-      - name: Build & Package DevLemon.app (Direct & MAS)
-        run: |
-          bash mac/scripts/build_app.sh direct
-          bash mac/scripts/build_app.sh mas
+      - name: Build & Package DevLemon.app
+        run: bash mac/scripts/build_app.sh
 
       - name: Create macOS Release Archives
         run: |
           TAG=${GITHUB_REF#refs/tags/}
           mkdir -p dist
           ditto -c -k --sequesterRsrc --keepParent build/DevLemon.app "dist/DevLemon-${TAG}-macOS.zip"
-          ditto -c -k --sequesterRsrc --keepParent build/DevLemon-MAS.app "dist/DevLemon-${TAG}-MAS.zip"
 
       - name: Generate signed Sparkle appcast.xml
         env:
@@ -100,7 +97,6 @@ jobs:
             echo "::error::generate_appcast not found at $SPARKLE_TOOL"
             exit 1
           fi
-          # 只对直装版生成更新条目，MAS 沙盒版由 App Store 负责更新，绝不能进入 Sparkle 更新源
           mkdir -p sparkle_update
           cp "dist/DevLemon-${TAG}-macOS.zip" sparkle_update/
           echo "$SPARKLE_KEY" | "$SPARKLE_TOOL" \
@@ -165,3 +161,13 @@ jobs:
             git pull --rebase origin main
           done
           exit 1
+
+  # 同步 Homebrew 公式，`brew install iiwish/tap/devlemon` 用户才能装到新版本
+  update-homebrew-tap:
+    name: Update Homebrew Tap
+    needs: publish-release
+    uses: ./.github/workflows/homebrew-tap.yml
+    with:
+      tag: ${{ github.ref_name }}
+    secrets:
+      HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}

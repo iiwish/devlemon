@@ -22,14 +22,10 @@ type Config struct {
 
 	// SafeOnly 是否仅扫描/执行 100% 绝对安全的项目
 	SafeOnly bool `json:"safe_only" yaml:"safe_only"`
-
-	// SandboxMode 是否处于 macOS App Sandbox 沙盒环境 (符合 Mac App Store 规范)
-	SandboxMode bool `json:"sandbox_mode" yaml:"sandbox_mode"`
 }
 
 // DefaultConfig 获取默认配置
 func DefaultConfig() *Config {
-	isSandboxed := os.Getenv("APP_SANDBOX_CONTAINER_ID") != ""
 	cfg := &Config{
 		WorkspacePaths: []string{},
 		DormancyDays:   7,
@@ -41,18 +37,19 @@ func DefaultConfig() *Config {
 			".next",        // Next.js 编译产物
 			"DerivedData",  // Xcode 编译产物
 		},
-		MaxDepth:    3,
-		SafeOnly:    false,
-		SandboxMode: isSandboxed,
+		MaxDepth: 3,
+		SafeOnly: false,
 	}
-
-	// 非沙盒环境才自动嗅探整个个人主目录下的工作区，沙盒环境由用户显式授权指定
-	if !isSandboxed {
-		discovered := AutoDiscoverWorkspaces()
-		cfg.WorkspacePaths = append(cfg.WorkspacePaths, discovered...)
-	}
-
 	return cfg
+}
+
+// DiscoverWorkspaces 自动嗅探个人主目录下的代码工作区并加入扫描范围。
+// 会遍历主目录一级子目录（可能触发「文稿」等受保护目录的系统授权弹窗），
+// 因此只在需要扫描工作区时调用，快速清理（仅安全项）无需调用。
+func (c *Config) DiscoverWorkspaces() {
+	for _, w := range AutoDiscoverWorkspaces() {
+		c.AddWorkspacePath(w)
+	}
 }
 
 // AddWorkspacePath 动态添加工作区路径（支持展开 ~）
