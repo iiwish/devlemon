@@ -8,7 +8,7 @@
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square" alt="License"></a>
     <a href="https://golang.org"><img src="https://img.shields.io/badge/Go-1.24+-00ADD8.svg?style=flat-square&logo=go" alt="Go Version"></a>
     <a href="https://apple.com/macos"><img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey.svg?style=flat-square&logo=apple" alt="Platform"></a>
-    <a href="https://github.com/iiwish/devlemon/releases"><img src="https://img.shields.io/badge/release-v0.2.14-emerald.svg?style=flat-square" alt="Release"></a>
+    <a href="https://github.com/iiwish/devlemon/releases"><img src="https://img.shields.io/badge/release-v0.2.15-emerald.svg?style=flat-square" alt="Release"></a>
     <a href="#readme"><img src="https://img.shields.io/badge/alias-dl-yellow.svg?style=flat-square" alt="Alias"></a>
     <a href="#readme"><img src="https://img.shields.io/badge/size-%3C%204MB-orange.svg?style=flat-square" alt="Binary Size"></a>
   </p>
@@ -84,6 +84,8 @@ make run-app  # 一键启动运行原生客户端
 * **现代 AI 编程助手**：Cursor、Codex、Claude Code、Ollama 等工具在本地静默生成海量缓存、浏览器测试包与临时模型。
 * **语言编译与依赖**：Rust `target/`、Swift `.build/`、Next.js `.next/` 以及前端 `node_modules` 分散在几十个历史工程中，每个都是空间黑洞。
 * **iOS 模拟器沙盒**：多台设备与测试沙盒随时间膨胀到数十 GB。
+* **工具链与 SDK 旧版本**：rustup 为各项目固定安装的 Rust 工具链、没有模拟器在用的 Android 系统镜像、旧版 NDK / build-tools / Gradle Wrapper、旧版 pnpm 留下的存储，每项都是 GB 级。
+* **各语言包管理器缓存**：npm、pnpm、Yarn、Bun、Cargo、Go、Gradle、Maven、pip、uv、Composer、Deno，以及 Hugging Face / PyTorch / Whisper 的模型缓存。
 
 而传统清理工具（如 CleanMyMac 或普通系统清理器）存在**严重的“上下文盲区”**：
 > 💥 *它们要么根本识别不出容器和编译缓存，要么粗暴抹掉所有 iOS 模拟器，强行掐死您正在运行的测试进程与登录态！*

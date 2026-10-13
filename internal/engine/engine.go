@@ -26,6 +26,7 @@ func NewEngine(cfg *config.Config) *Engine {
 			probe.NewDockerProbe(),
 			probe.NewSimulatorProbe(),
 			probe.NewCacheProbe(),
+			probe.NewToolchainProbe(),
 			probe.NewWorkspaceProbe(),
 			probe.NewLeftoverProbe(),
 			probe.NewManualReviewProbe(),

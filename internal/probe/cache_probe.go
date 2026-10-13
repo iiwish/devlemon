@@ -31,7 +31,8 @@ type cacheTarget struct {
 	title       string
 	description string
 	subpath     string
-	absPath     string // 不在主目录下的绝对路径（优先于 subpath）
+	absPath     string   // 不在主目录下的绝对路径（优先于 subpath）
+	subpaths    []string // 多个目录聚合为一项（优先于 subpath / absPath）
 	risk        model.RiskLevel
 	cleanCmd    []string
 }
@@ -134,6 +135,95 @@ func (p *CacheProbe) Scan(ctx context.Context, cfg *config.Config) (*model.Group
 			risk:        model.RiskRebuildable,
 		},
 		{
+			id:          "cargo_cache",
+			title:       i18n.T("Cargo Crate Download Cache", "Cargo 依赖下载缓存"),
+			description: i18n.T("Downloaded crate archives, extracted sources and git dependencies in ~/.cargo; Cargo downloads them again on the next build", "~/.cargo 中下载的 crate 压缩包、解压源码与 git 依赖，下次构建时 Cargo 会重新下载"),
+			subpaths: []string{
+				filepath.Join(".cargo", "registry", "cache"),
+				filepath.Join(".cargo", "registry", "src"),
+				filepath.Join(".cargo", "git", "checkouts"),
+				filepath.Join(".cargo", "git", "db"),
+			},
+			risk: model.RiskRebuildable,
+		},
+		{
+			id:          "gradle_caches",
+			title:       i18n.T("Gradle Dependency & Build Cache", "Gradle 依赖与构建缓存"),
+			description: i18n.T("Downloaded dependencies and build cache in ~/.gradle/caches; rebuilt on the next Gradle build (stop running Gradle daemons first)", "~/.gradle/caches 中的依赖与构建缓存，下次构建时自动重新下载（清理前请先停止正在运行的 Gradle 守护进程）"),
+			subpath:     filepath.Join(".gradle", "caches"),
+			risk:        model.RiskRebuildable,
+		},
+		{
+			id:          "maven_repository",
+			title:       i18n.T("Maven Local Repository", "Maven 本地依赖仓库"),
+			description: i18n.T("Dependencies downloaded by Maven (~/.m2/repository); downloaded again on the next build. Locally installed (mvn install) artifacts are also removed", "Maven 下载的依赖 (~/.m2/repository)，下次构建时重新下载；通过 mvn install 安装到本地的构件也会一并删除"),
+			subpath:     filepath.Join(".m2", "repository"),
+			risk:        model.RiskRebuildable,
+		},
+		{
+			id:          "yarn_cache",
+			title:       i18n.T("Yarn Package Cache", "Yarn 依赖缓存"),
+			description: i18n.T("Global package cache of Yarn; packages are downloaded again on the next install", "Yarn 全局依赖缓存，下次安装时重新下载"),
+			subpaths: []string{
+				filepath.Join("Library", "Caches", "Yarn"),
+				filepath.Join(".cache", "yarn"),
+				filepath.Join(".yarn", "berry", "cache"),
+			},
+			risk: model.RiskRebuildable,
+		},
+		{
+			id:          "bun_cache",
+			title:       i18n.T("Bun Package Cache", "Bun 依赖缓存"),
+			description: i18n.T("Global install cache of Bun (~/.bun/install/cache)", "Bun 全局安装缓存 (~/.bun/install/cache)，下次安装时重新下载"),
+			subpath:     filepath.Join(".bun", "install", "cache"),
+			risk:        model.RiskRebuildable,
+		},
+		{
+			id:          "deno_cache",
+			title:       i18n.T("Deno Module Cache", "Deno 模块缓存"),
+			description: i18n.T("Remote modules and compiled code cached by Deno", "Deno 缓存的远程模块与编译产物，下次运行时重新下载"),
+			subpaths: []string{
+				filepath.Join("Library", "Caches", "deno"),
+				filepath.Join(".cache", "deno"),
+			},
+			risk: model.RiskRebuildable,
+		},
+		{
+			id:          "composer_cache",
+			title:       i18n.T("Composer Package Cache", "Composer 依赖缓存"),
+			description: i18n.T("Package download cache of PHP Composer", "PHP Composer 的依赖下载缓存"),
+			subpaths: []string{
+				filepath.Join("Library", "Caches", "composer"),
+				filepath.Join(".composer", "cache"),
+				filepath.Join(".cache", "composer"),
+			},
+			risk: model.RiskRebuildable,
+		},
+		{
+			id:          "huggingface_cache",
+			title:       i18n.T("Hugging Face Model & Dataset Cache", "Hugging Face 模型与数据集缓存"),
+			description: i18n.T("Models and datasets downloaded by transformers / diffusers / datasets (~/.cache/huggingface/hub). Downloaded again on next use, which can be slow for large models", "transformers / diffusers / datasets 下载的模型与数据集 (~/.cache/huggingface/hub)，下次使用时重新下载，大模型可能较慢"),
+			subpaths: []string{
+				filepath.Join(".cache", "huggingface", "hub"),
+				filepath.Join(".cache", "huggingface", "datasets"),
+			},
+			risk: model.RiskRebuildable,
+		},
+		{
+			id:          "torch_hub_cache",
+			title:       i18n.T("PyTorch Hub Model Cache", "PyTorch Hub 模型缓存"),
+			description: i18n.T("Pretrained weights downloaded via torch.hub (~/.cache/torch); downloaded again on next use", "通过 torch.hub 下载的预训练权重 (~/.cache/torch)，下次使用时重新下载"),
+			subpath:     filepath.Join(".cache", "torch"),
+			risk:        model.RiskRebuildable,
+		},
+		{
+			id:          "whisper_cache",
+			title:       i18n.T("Whisper Model Cache", "Whisper 语音模型缓存"),
+			description: i18n.T("Speech recognition models downloaded by openai-whisper (~/.cache/whisper)", "openai-whisper 下载的语音识别模型 (~/.cache/whisper)，下次使用时重新下载"),
+			subpath:     filepath.Join(".cache", "whisper"),
+			risk:        model.RiskRebuildable,
+		},
+		{
 			id:          "nodegyp_cache",
 			title:       i18n.T("node-gyp Header Cache", "node-gyp 原生模块编译头文件缓存"),
 			description: i18n.T("Node.js C++ header files for compiling native addons", "编译 Node 原生扩展下载的 C++ 头文件缓存"),
@@ -165,6 +255,27 @@ func (p *CacheProbe) Scan(ctx context.Context, cfg *config.Config) (*model.Group
 
 	for _, tgt := range targets {
 		tgt := tgt
+		if len(tgt.subpaths) > 0 {
+			var paths []string
+			for _, sp := range tgt.subpaths {
+				paths = append(paths, filepath.Join(home, sp))
+			}
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				item := newCacheItem(tgt.id, tgt.title, tgt.description, paths, 10*1024*1024, tgt.risk)
+				if item == nil {
+					return
+				}
+				item.Category = model.CategoryPackageCache
+				mu.Lock()
+				group.Items = append(group.Items, item)
+				group.TotalSizeBytes += item.SizeBytes
+				group.TotalReclaimableBytes += item.SizeBytes
+				mu.Unlock()
+			}()
+			continue
+		}
 		fullPath := tgt.absPath
 		if fullPath == "" {
 			if tgt.subpath == "" || tgt.subpath == "." {

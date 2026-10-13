@@ -46,7 +46,7 @@ var libraryCachesSkip = map[string]bool{
 	"CodexBar": true,
 	// 已由 CacheProbe 覆盖
 	"go-build": true, "pnpm": true, "pip": true, "Homebrew": true, "ms-playwright": true,
-	"CocoaPods": true, "node-gyp": true,
+	"CocoaPods": true, "node-gyp": true, "Yarn": true, "deno": true, "composer": true,
 	// 已由 AppCacheProbe 覆盖
 	"com.microsoft.VSCode": true, "Codex": true, "com.tencent.xinWeChat": true, "com.netease.163music": true,
 	// 已由浏览器规则 / SystemMaintenanceProbe 覆盖
@@ -163,10 +163,24 @@ func (p *ManualReviewProbe) Scan(ctx context.Context, cfg *config.Config) (*mode
 		})
 	}
 
-	// 6. 过期临时文件：用户临时目录中 7 天以上未修改的条目
+	// 6. 本地大模型：用户主动拉取的模型文件，重新下载耗时很长，只列出不预选
+	run(func() {
+		add(newCacheItem("ollama_models",
+			i18n.T("Ollama Local Models", "Ollama 本地大模型"),
+			i18n.T("Models pulled with ollama pull (~/.ollama/models). Prefer `ollama rm <model>` to remove single models; cleaning here removes all of them and they must be pulled again.", "通过 ollama pull 下载的模型 (~/.ollama/models)。建议用 `ollama rm <模型名>` 单独删除；在此清理会删除全部模型，需要重新拉取"),
+			[]string{filepath.Join(home, ".ollama", "models")}, 100*1024*1024, model.RiskCaution))
+	})
+	run(func() {
+		add(newCacheItem("lmstudio_models",
+			i18n.T("LM Studio Local Models", "LM Studio 本地大模型"),
+			i18n.T("Models downloaded in LM Studio. Removing them means downloading again in the app.", "LM Studio 中下载的模型，删除后需在应用内重新下载"),
+			[]string{filepath.Join(home, ".lmstudio", "models"), filepath.Join(home, ".cache", "lm-studio", "models")}, 100*1024*1024, model.RiskCaution))
+	})
+
+	// 7. 过期临时文件：用户临时目录中 7 天以上未修改的条目
 	run(func() { add(scanStaleTempFiles()) })
 
-	// 7. ~/Library/Caches 下其他应用缓存：按 Apple 规范可清除，但个别应用会违规存放数据，必须逐项确认
+	// 8. ~/Library/Caches 下其他应用缓存：按 Apple 规范可清除，但个别应用会违规存放数据，必须逐项确认
 	// 更新安装包由 SystemMaintenanceProbe 统计：整个目录被覆盖则跳过，仅子目录被覆盖则统计其余子项
 	cachesDir := filepath.Join(home, "Library", "Caches")
 	claimed := updaterClaimed(cachesDir)

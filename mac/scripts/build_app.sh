@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MAC_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 REPO_DIR="$(cd "${MAC_DIR}/.." && pwd)"
 OUTPUT_DIR="${REPO_DIR}/build"
-VERSION="0.2.14"
+VERSION="0.2.15"
 APP_NAME="DevLemon.app"
 
 echo "🚀 构建 DevLemon.app [Sparkle 2.0 + CLI 自动软链接]..."
