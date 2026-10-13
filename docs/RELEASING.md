@@ -19,6 +19,8 @@
 - **Xcode**：设置 → Accounts → 选中团队 → Manage Certificates… → 左下角 `+` → **Developer ID Application**
 - 或在 [developer.apple.com](https://developer.apple.com/account/resources/certificates/list) → Certificates → `+` → Developer ID Application
 
+> 请选择 **G2 Sub-CA**：选旧版 Sub-CA 或由 Xcode 自动创建时，证书可能由旧中间证书签发，有效期会被截断到 2027-02-01。网页创建需要先用「钥匙串访问 → 证书助理 → 从证书颁发机构请求证书」生成 CSR。
+
 证书会进入本机钥匙串，可用下面命令确认：
 
 ```bash
@@ -27,7 +29,13 @@ security find-identity -v -p codesigning | grep "Developer ID Application"
 
 ### 2. 导出证书并配置 GitHub Secrets
 
-打开「钥匙串访问」→ 左侧选「登录」→ 顶部选「我的证书」→ 右键 `Developer ID Application: Beijing Wish Technology Co., Ltd (38S76J82P4)` → 导出，格式选「个人信息交换 (.p12)」，设置一个导出密码。只导出这一张证书，不要把其他证书的私钥一起上传。
+打开「钥匙串访问」→ 左侧选「登录」→ 顶部选「我的证书」→ 右键 `Developer ID Application: Beijing Wish Technology Co., Ltd (38S76J82P4)` → 导出，格式选「个人信息交换 (.p12)」，设置一个导出密码。只导出这一张证书，不要把其他证书的私钥一起上传。钥匙串里如果有多张同名证书，按「过期时间」区分，选最新的那张。
+
+上传前确认导出的证书（会提示输入导出密码），输出中应包含 `Developer ID Application`，签发方为 `OU=G2`：
+
+```bash
+openssl pkcs12 -in DeveloperID.p12 -nokeys | grep -E "subject|issuer"
+```
 
 ```bash
 base64 -i DeveloperID.p12 | gh secret set DEVELOPER_ID_CERT_P12
@@ -105,5 +113,7 @@ xcrun notarytool store-credentials devlemon-notary --key AuthKey_XXXXXXXXXX.p8 -
 ```bash
 NOTARY_KEYCHAIN_PROFILE=devlemon-notary bash mac/scripts/notarize.sh build/DevLemon.app build/DevLemon-macOS.zip
 ```
+
+钥匙串中有多张同名证书时，`codesign` 会报身份不唯一，此时把 `DEVLEMON_SIGN_IDENTITY` 设为证书的 SHA-1 指纹（`security find-identity -v -p codesigning` 输出的第一列）。
 
 不设置 `DEVLEMON_SIGN_IDENTITY` 时 `build_app.sh` 使用临时签名，适合本地开发调试。

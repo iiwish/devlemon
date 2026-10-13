@@ -22,8 +22,10 @@ else
     exit 1
 fi
 
-# 临时签名的 App 无法公证，提前给出明确错误
-if ! codesign -dv "${APP}" 2>&1 | grep -q "^Authority=Developer ID Application"; then
+# 临时签名的 App 无法公证，提前给出明确错误。
+# 先取完整输出再匹配：直接管道给 grep -q 会让 codesign 收到 SIGPIPE，在 pipefail 下被误判为失败
+SIGNATURE_INFO="$(codesign -dvv "${APP}" 2>&1 || true)"
+if ! grep -q "^Authority=Developer ID Application" <<< "${SIGNATURE_INFO}"; then
     echo "❌ ${APP} 未使用 Developer ID Application 证书签名" >&2
     exit 1
 fi
