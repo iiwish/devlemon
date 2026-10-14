@@ -8,7 +8,7 @@
     <a href="https://github.com/iiwish/devlemon/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square" alt="License"></a>
     <a href="https://golang.org"><img src="https://img.shields.io/badge/Go-1.24+-00ADD8.svg?style=flat-square&logo=go" alt="Go Version"></a>
     <a href="https://apple.com/macos"><img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey.svg?style=flat-square&logo=apple" alt="Platform"></a>
-    <a href="https://github.com/iiwish/devlemon/releases"><img src="https://img.shields.io/badge/release-v0.2.15-emerald.svg?style=flat-square" alt="Release"></a>
+    <a href="https://github.com/iiwish/devlemon/releases"><img src="https://img.shields.io/badge/release-v0.2.16-emerald.svg?style=flat-square" alt="Release"></a>
     <a href="#readme"><img src="https://img.shields.io/badge/alias-dl-yellow.svg?style=flat-square" alt="Alias"></a>
     <a href="#readme"><img src="https://img.shields.io/badge/size-%3C%204MB-orange.svg?style=flat-square" alt="Binary Size"></a>
   </p>
@@ -238,6 +238,21 @@ target_dir_names:
 # Max directory depth to search
 max_depth: 3
 ```
+
+### Custom Cleanup Rules
+
+Cache items are described by YAML rules. Drop a `.yaml` file into `~/.config/devlemon/rules.d/` to add your own cache directories, or to disable / override built-in rules:
+
+```yaml
+group: package_caches
+rules:
+  - id: my_tool_cache
+    title: {en: "My Tool Cache"}
+    paths: ["~/.my-tool/cache"]
+    risk: rebuildable
+```
+
+Run `dl rules` to list active rules and `dl rules check <file>` to validate a rule file. See [docs/RULES.md](docs/RULES.md) (Chinese) for the full format and path safety limits. Built-in rules for more tools are welcome as PRs — only YAML is needed.
 
 ---
 

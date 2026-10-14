@@ -40,7 +40,7 @@ func TestFindLeftovers(t *testing.T) {
 	ageTree(t, home, 60*24*time.Hour)
 	mkfile(t, filepath.Join(lib, "Application Support", "com.active.App", "fresh"))
 
-	got := findLeftovers(home, buildAppIndex([]string{apps}), nil)
+	got := findLeftovers(home, buildAppIndex([]string{apps}), nil, nil)
 	if len(got) != 1 {
 		t.Fatalf("leftovers = %v", got)
 	}
@@ -55,7 +55,7 @@ func TestFindLeftovers(t *testing.T) {
 	}
 
 	// /Applications 不可读时一律不判定
-	if got := findLeftovers(home, buildAppIndex([]string{filepath.Join(home, "missing")}), nil); len(got) != 0 {
+	if got := findLeftovers(home, buildAppIndex([]string{filepath.Join(home, "missing")}), nil, nil); len(got) != 0 {
 		t.Errorf("unreadable app index must yield no leftovers, got %v", got)
 	}
 }

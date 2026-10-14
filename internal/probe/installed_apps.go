@@ -20,11 +20,12 @@ var (
 	appIndex     *installedAppIndex
 )
 
-// ResetScanCaches 清空单次扫描内共享的缓存（已安装应用索引、应用残留），由引擎在每次扫描开始时调用，
+// ResetScanCaches 清空单次扫描内共享的缓存（已安装应用索引、应用残留、清理规则），由引擎在每次扫描开始时调用，
 // 保证 TUI 等常驻进程多次扫描时能感知应用的安装与卸载。不可与正在进行的扫描并发调用。
 func ResetScanCaches() {
 	appIndexOnce, appIndex = sync.Once{}, nil
 	leftoverOnce, leftoverCache = sync.Once{}, nil
+	rulesOnce, rulesSet = sync.Once{}, nil
 }
 
 // installedApps 构建一次并缓存（同一次扫描中多个探针共用）

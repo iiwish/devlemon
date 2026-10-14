@@ -39,16 +39,11 @@ const ManualReviewGroupID = "manual_review"
 // tempFileMinAge 临时文件（含其内部所有文件）超过该时长未被修改才纳入候选
 const tempFileMinAge = 7 * 24 * time.Hour
 
-// libraryCachesSkip ~/Library/Caches 下不纳入「其他应用缓存」的目录：
-// 已由其他探针或规则覆盖（避免重复统计），或明确存放了用户数据（绝不触碰）
+// libraryCachesSkip ~/Library/Caches 下不纳入「其他应用缓存」的目录（规则覆盖的目录另由 ruleCoverage 自动排除）：
+// 明确存放了用户数据（绝不触碰），或已由 Go 实现的浏览器 / 系统维护规则覆盖
 var libraryCachesSkip = map[string]bool{
 	// 用户数据：CodexBar 在 Caches 中保存 Token 用量账单数据库
 	"CodexBar": true,
-	// 已由 CacheProbe 覆盖
-	"go-build": true, "pnpm": true, "pip": true, "Homebrew": true, "ms-playwright": true,
-	"CocoaPods": true, "node-gyp": true, "Yarn": true, "deno": true, "composer": true,
-	// 已由 AppCacheProbe 覆盖
-	"com.microsoft.VSCode": true, "Codex": true, "com.tencent.xinWeChat": true, "com.netease.163music": true,
 	// 已由浏览器规则 / SystemMaintenanceProbe 覆盖
 	"Google": true, "Microsoft Edge": true, "company.thebrowser.Arc": true, "BraveSoftware": true,
 	"Firefox": true, "com.apple.Safari": true, "com.apple.dt.Xcode": true,
@@ -184,11 +179,12 @@ func (p *ManualReviewProbe) Scan(ctx context.Context, cfg *config.Config) (*mode
 	// 更新安装包由 SystemMaintenanceProbe 统计：整个目录被覆盖则跳过，仅子目录被覆盖则统计其余子项
 	cachesDir := filepath.Join(home, "Library", "Caches")
 	claimed := updaterClaimed(cachesDir)
+	ruleCaches, _ := ruleCoverage(home)
 	if entries, err := os.ReadDir(cachesDir); err == nil {
 		for _, e := range entries {
 			name := e.Name()
 			dir := filepath.Join(cachesDir, name)
-			if !e.IsDir() || libraryCachesSkip[name] || claimed[dir] || isLeftoverName(name) || strings.HasPrefix(name, "com.apple.") ||
+			if !e.IsDir() || libraryCachesSkip[name] || ruleCaches[name] || claimed[dir] || isLeftoverName(name) || strings.HasPrefix(name, "com.apple.") ||
 				strings.Contains(strings.ToLower(name), "devlemon") {
 				continue
 			}

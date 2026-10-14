@@ -24,5 +24,4 @@ target_dir_names:
 # 工作区扫描最大深度
 max_depth: 3
 
-# 是否默认仅处理 100% 绝对安全的缓存项
-safe_only: false
+# 自定义清理规则放在 ~/.config/devlemon/rules.d/*.yaml，格式见 docs/RULES.md

@@ -38,13 +38,6 @@ const LeftoverGroupID = "app_leftovers"
 // leftoverMinIdle 残留数据须在该时长内无任何改动：仍有进程在写入说明应用（或同名命令行工具）还在使用
 const leftoverMinIdle = 30 * 24 * time.Hour
 
-// leftoverHandledIDs 已由其他探针按缓存子目录处理的应用，避免与整个容器目录重复统计
-var leftoverHandledIDs = map[string]bool{
-	"com.tencent.xinwechat": true, "com.tencent.weworkmac": true, "com.alibaba.dingtalkmac": true,
-	"com.electron.lark": true, "com.bytedance.ee.lark": true, "com.tencent.qqmusicmac": true,
-	"com.netease.163music": true, "com.tencent.qq": true, "com.microsoft.vscode": true,
-}
-
 // leftoverLocation ~/Library 下以 Bundle ID 命名数据的位置：dir 为目录，suffix 为条目名中 Bundle ID 之后的后缀；
 // guiOnly 表示只有图形界面应用才会产生（偏好设置、WebKit、沙盒容器等），命令行工具不会
 type leftoverLocation struct {
@@ -82,7 +75,9 @@ func appLeftovers() map[string][]string {
 		if err != nil {
 			return
 		}
-		leftoverCache = findLeftovers(home, installedApps(), updaterClaimed(filepath.Join(home, "Library", "Caches")))
+		// 规则已按缓存子目录处理的应用（如微信容器内的缓存）不再整体判定为残留，避免重复统计
+		_, handled := ruleCoverage(home)
+		leftoverCache = findLeftovers(home, installedApps(), updaterClaimed(filepath.Join(home, "Library", "Caches")), handled)
 	})
 	return leftoverCache
 }
@@ -93,7 +88,7 @@ func isLeftoverName(name string) bool {
 	return ok
 }
 
-func findLeftovers(home string, idx *installedAppIndex, claimed map[string]bool) map[string][]string {
+func findLeftovers(home string, idx *installedAppIndex, claimed, handled map[string]bool) map[string][]string {
 	result := make(map[string][]string)
 	if idx == nil || !idx.ok {
 		return result
@@ -116,7 +111,7 @@ func findLeftovers(home string, idx *installedAppIndex, claimed map[string]bool)
 			}
 			id := strings.ToLower(name)
 			if !looksLikeBundleID(name) || strings.HasPrefix(id, "com.apple.") ||
-				strings.Contains(id, "devlemon") || leftoverHandledIDs[id] || idx.hasApp(id) {
+				strings.Contains(id, "devlemon") || handled[id] || idx.hasApp(id) {
 				continue
 			}
 			p := filepath.Join(loc.dir, e.Name())

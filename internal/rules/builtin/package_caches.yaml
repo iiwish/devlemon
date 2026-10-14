@@ -1,0 +1,306 @@
+# DevLemon 内置清理规则。格式说明见 docs/RULES.md
+# Built-in cleanup rules. See docs/RULES.md for the format.
+group: package_caches
+rules:
+  - id: go_build_cache
+    title:
+      en: "Go Build Cache"
+      zh: "Go 编译中间缓存"
+    description:
+      en: "Temporary build object files produced by Go compiler"
+      zh: "Go 编译器生成的临时目标文件，删除后随时按需自动重新生成"
+    paths:
+      - "~/Library/Caches/go-build"
+    risk: rebuildable
+    min_size: 10MB
+    clean_command: ["go", "clean", "-cache"]
+
+  - id: go_mod_cache
+    title:
+      en: "Go Module Download Cache"
+      zh: "Go 模块下载缓存"
+    description:
+      en: "Locally downloaded third-party Go dependencies (pkg/mod)"
+      zh: "本地下载缓存的第三方 Go 依赖包 (pkg/mod)"
+    paths:
+      - "~/go/pkg/mod"
+    risk: rebuildable
+    min_size: 10MB
+    clean_command: ["go", "clean", "-modcache"]
+
+  - id: npm_cache
+    title:
+      en: "npm Package Cache"
+      zh: "npm 离线安装包缓存"
+    description:
+      en: "Global npm tarball cache (~/.npm), safe to purge"
+      zh: "npm 全局安装包缓存 (~/.npm)，按需重新拉取"
+    paths:
+      - "~/.npm"
+    risk: rebuildable
+    min_size: 10MB
+    clean_command: ["npm", "cache", "clean", "--force"]
+
+  - id: pnpm_cache
+    title:
+      en: "pnpm Store Cache"
+      zh: "pnpm 临时存储缓存"
+    description:
+      en: "Local client download cache for pnpm"
+      zh: "pnpm 客户端本地下载缓存"
+    paths:
+      - "~/Library/Caches/pnpm"
+    risk: rebuildable
+    min_size: 10MB
+
+  - id: uv_cache
+    title:
+      en: "Python uv Package Cache"
+      zh: "Python uv 高速包缓存"
+    description:
+      en: "Download and prebuilt wheel cache for uv toolchain"
+      zh: "Python uv 工具链下载与预构建 wheel 缓存"
+    paths:
+      - "~/.cache/uv"
+    risk: rebuildable
+    min_size: 10MB
+    clean_command: ["uv", "cache", "clean"]
+
+  - id: pip_cache
+    title:
+      en: "Python pip Download Cache"
+      zh: "Python pip 下载缓存"
+    description:
+      en: "Offline download cache for pip packages"
+      zh: "pip 安装包离线缓存"
+    paths:
+      - "~/Library/Caches/pip"
+    risk: rebuildable
+    min_size: 10MB
+    clean_command: ["pip", "cache", "purge"]
+
+  - id: homebrew_cache
+    title:
+      en: "Homebrew Bottle & Download Cache"
+      zh: "Homebrew 安装包与 Bottle 缓存"
+    description:
+      en: "Cached bottle downloads and outdated package archives"
+      zh: "Brew 下载的历史版本二进制包与安装归档"
+    paths:
+      - "~/Library/Caches/Homebrew"
+    risk: rebuildable
+    min_size: 10MB
+    clean_command: ["brew", "cleanup", "-s"]
+
+  - id: playwright_browsers
+    title:
+      en: "Playwright Headless Browsers"
+      zh: "Playwright 自动化无头浏览器包"
+    description:
+      en: "Chromium/WebKit standalone browser binaries for E2E tests"
+      zh: "用于 E2E 自动化测试的 Chromium/WebKit 独立浏览器包"
+    paths:
+      - "~/Library/Caches/ms-playwright"
+    risk: rebuildable
+    min_size: 10MB
+
+  - id: puppeteer_browsers
+    title:
+      en: "Puppeteer Headless Browsers"
+      zh: "Puppeteer 无头测试浏览器缓存"
+    description:
+      en: "Downloaded Chromium browser binaries for Puppeteer"
+      zh: "Puppeteer 离线测试浏览器运行时 (~/.cache/puppeteer)"
+    paths:
+      - "~/.cache/puppeteer"
+    risk: rebuildable
+    min_size: 10MB
+
+  - id: cocoapods_cache
+    title:
+      en: "CocoaPods Dependency Cache"
+      zh: "CocoaPods 依赖下载缓存"
+    description:
+      en: "Downloaded pods archives and specs (~/Library/Caches/CocoaPods)"
+      zh: "CocoaPods 本地下载归档包，删除无副作用"
+    paths:
+      - "~/Library/Caches/CocoaPods"
+    risk: rebuildable
+    min_size: 10MB
+
+  - id: ios_firmware
+    title:
+      en: "iOS / iPadOS Firmware Downloads"
+      zh: "iOS / iPadOS 固件安装包 (.ipsw)"
+    description:
+      en: "Firmware downloaded by Finder when updating or restoring devices; re-downloaded when needed"
+      zh: "Finder 更新或恢复设备时下载的系统固件，用完即可删除，需要时重新下载"
+    paths:
+      - "~/Library/iTunes/iPhone Software Updates"
+    risk: rebuildable
+    min_size: 10MB
+
+  - id: ipados_firmware
+    title:
+      en: "iPad Firmware Downloads"
+      zh: "iPad 固件安装包 (.ipsw)"
+    description:
+      en: "Firmware downloaded by Finder when updating or restoring devices; re-downloaded when needed"
+      zh: "Finder 更新或恢复设备时下载的系统固件，用完即可删除，需要时重新下载"
+    paths:
+      - "~/Library/iTunes/iPad Software Updates"
+    risk: rebuildable
+    min_size: 10MB
+
+  - id: cargo_cache
+    title:
+      en: "Cargo Crate Download Cache"
+      zh: "Cargo 依赖下载缓存"
+    description:
+      en: "Downloaded crate archives, extracted sources and git dependencies in ~/.cargo; Cargo downloads them again on the next build"
+      zh: "~/.cargo 中下载的 crate 压缩包、解压源码与 git 依赖，下次构建时 Cargo 会重新下载"
+    paths:
+      - "~/.cargo/registry/cache"
+      - "~/.cargo/registry/src"
+      - "~/.cargo/git/checkouts"
+      - "~/.cargo/git/db"
+    risk: rebuildable
+    min_size: 10MB
+
+  - id: gradle_caches
+    title:
+      en: "Gradle Dependency & Build Cache"
+      zh: "Gradle 依赖与构建缓存"
+    description:
+      en: "Downloaded dependencies and build cache in ~/.gradle/caches; rebuilt on the next Gradle build (stop running Gradle daemons first)"
+      zh: "~/.gradle/caches 中的依赖与构建缓存，下次构建时自动重新下载（清理前请先停止正在运行的 Gradle 守护进程）"
+    paths:
+      - "~/.gradle/caches"
+    risk: rebuildable
+    min_size: 10MB
+
+  - id: maven_repository
+    title:
+      en: "Maven Local Repository"
+      zh: "Maven 本地依赖仓库"
+    description:
+      en: "Dependencies downloaded by Maven (~/.m2/repository); downloaded again on the next build. Locally installed (mvn install) artifacts are also removed"
+      zh: "Maven 下载的依赖 (~/.m2/repository)，下次构建时重新下载；通过 mvn install 安装到本地的构件也会一并删除"
+    paths:
+      - "~/.m2/repository"
+    risk: rebuildable
+    min_size: 10MB
+
+  - id: yarn_cache
+    title:
+      en: "Yarn Package Cache"
+      zh: "Yarn 依赖缓存"
+    description:
+      en: "Global package cache of Yarn; packages are downloaded again on the next install"
+      zh: "Yarn 全局依赖缓存，下次安装时重新下载"
+    paths:
+      - "~/Library/Caches/Yarn"
+      - "~/.cache/yarn"
+      - "~/.yarn/berry/cache"
+    risk: rebuildable
+    min_size: 10MB
+
+  - id: bun_cache
+    title:
+      en: "Bun Package Cache"
+      zh: "Bun 依赖缓存"
+    description:
+      en: "Global install cache of Bun (~/.bun/install/cache)"
+      zh: "Bun 全局安装缓存 (~/.bun/install/cache)，下次安装时重新下载"
+    paths:
+      - "~/.bun/install/cache"
+    risk: rebuildable
+    min_size: 10MB
+
+  - id: deno_cache
+    title:
+      en: "Deno Module Cache"
+      zh: "Deno 模块缓存"
+    description:
+      en: "Remote modules and compiled code cached by Deno"
+      zh: "Deno 缓存的远程模块与编译产物，下次运行时重新下载"
+    paths:
+      - "~/Library/Caches/deno"
+      - "~/.cache/deno"
+    risk: rebuildable
+    min_size: 10MB
+
+  - id: composer_cache
+    title:
+      en: "Composer Package Cache"
+      zh: "Composer 依赖缓存"
+    description:
+      en: "Package download cache of PHP Composer"
+      zh: "PHP Composer 的依赖下载缓存"
+    paths:
+      - "~/Library/Caches/composer"
+      - "~/.composer/cache"
+      - "~/.cache/composer"
+    risk: rebuildable
+    min_size: 10MB
+
+  - id: huggingface_cache
+    title:
+      en: "Hugging Face Model & Dataset Cache"
+      zh: "Hugging Face 模型与数据集缓存"
+    description:
+      en: "Models and datasets downloaded by transformers / diffusers / datasets (~/.cache/huggingface/hub). Downloaded again on next use, which can be slow for large models"
+      zh: "transformers / diffusers / datasets 下载的模型与数据集 (~/.cache/huggingface/hub)，下次使用时重新下载，大模型可能较慢"
+    paths:
+      - "~/.cache/huggingface/hub"
+      - "~/.cache/huggingface/datasets"
+    risk: rebuildable
+    min_size: 10MB
+
+  - id: torch_hub_cache
+    title:
+      en: "PyTorch Hub Model Cache"
+      zh: "PyTorch Hub 模型缓存"
+    description:
+      en: "Pretrained weights downloaded via torch.hub (~/.cache/torch); downloaded again on next use"
+      zh: "通过 torch.hub 下载的预训练权重 (~/.cache/torch)，下次使用时重新下载"
+    paths:
+      - "~/.cache/torch"
+    risk: rebuildable
+    min_size: 10MB
+
+  - id: whisper_cache
+    title:
+      en: "Whisper Model Cache"
+      zh: "Whisper 语音模型缓存"
+    description:
+      en: "Speech recognition models downloaded by openai-whisper (~/.cache/whisper)"
+      zh: "openai-whisper 下载的语音识别模型 (~/.cache/whisper)，下次使用时重新下载"
+    paths:
+      - "~/.cache/whisper"
+    risk: rebuildable
+    min_size: 10MB
+
+  - id: nodegyp_cache
+    title:
+      en: "node-gyp Header Cache"
+      zh: "node-gyp 原生模块编译头文件缓存"
+    description:
+      en: "Node.js C++ header files for compiling native addons"
+      zh: "编译 Node 原生扩展下载的 C++ 头文件缓存"
+    paths:
+      - "~/Library/Caches/node-gyp"
+    risk: rebuildable
+    min_size: 10MB
+  # Clang 模块缓存位于每用户缓存目录 ($TMPDIR 同级的 C/)，仅 macOS
+  - id: clang_module_cache
+    title:
+      en: "Clang Module Cache"
+      zh: "Clang 预编译模块缓存"
+    description:
+      en: "Precompiled module cache shared by Xcode, swiftc and clang; rebuilt on the next compile"
+      zh: "Xcode / swiftc / clang 共用的预编译模块缓存，下次编译时自动重建"
+    paths:
+      - "{darwin_user_cache}/clang/ModuleCache"
+    risk: rebuildable
+    min_size: 10MB

@@ -16,6 +16,7 @@ import (
 	"devlemon/internal/i18n"
 	"devlemon/internal/model"
 	"devlemon/internal/reporter"
+	"devlemon/internal/rules"
 	"devlemon/internal/tui"
 	"devlemon/internal/version"
 )
@@ -23,7 +24,7 @@ import (
 func main() {
 	// 如果不带参数直接运行 devlemon，或显式指定 tui / -i，默认启动全屏交互式 TUI
 	if len(os.Args) == 1 || (len(os.Args) >= 2 && (os.Args[1] == "tui" || os.Args[1] == "-i")) {
-		cfg := config.DefaultConfig()
+		cfg := loadConfig()
 		cfg.DiscoverWorkspaces()
 		if err := tui.RunTUI(cfg); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", i18n.T("TUI error", "TUI 启动异常"), err)
@@ -36,7 +37,7 @@ func main() {
 
 	switch subcommand {
 	case "tui", "-i":
-		cfg := config.DefaultConfig()
+		cfg := loadConfig()
 		cfg.DiscoverWorkspaces()
 		_ = tui.RunTUI(cfg)
 	case "scan":
@@ -45,6 +46,8 @@ func main() {
 		handleClean(os.Args[2:])
 	case "analyze":
 		handleAnalyze(os.Args[2:])
+	case "rules":
+		handleRules(os.Args[2:])
 	case "version", "-v", "--version":
 		fmt.Printf("devlemon %s (%s/%s)\n", version.Version, runtime.GOOS, runtime.GOARCH)
 	case "help", "-h", "--help":
@@ -68,6 +71,7 @@ func printUsage() {
   scan    扫描当前系统的可清理缓存与构建产物
   clean   执行清理操作
   analyze 分析目录占用，按体积列出最大的子项 (默认主目录)
+  rules   列出清理规则；rules check <文件> 校验规则文件
   version 查看版本信息
 
 通用参数 (scan / clean 均支持):
@@ -94,6 +98,7 @@ Commands:
   scan    Scan reclaimable caches and build artifacts
   clean   Clean detected reclaimable resources
   analyze Show the largest items under a directory (default: home)
+  rules   List cleanup rules; rules check <file> validates rule files
   version Show version information
 
 Options:
@@ -112,6 +117,15 @@ Examples:
 	}
 }
 
+// loadConfig 默认配置 + 用户配置文件 (~/.config/devlemon/config.yaml)。配置文件有误时提示并使用默认配置
+func loadConfig() *config.Config {
+	cfg := config.DefaultConfig()
+	if err := cfg.LoadUserFile(); err != nil {
+		fmt.Fprintf(os.Stderr, "devlemon: %s: %v\n", i18n.T("ignoring config file", "配置文件有误，已忽略"), err)
+	}
+	return cfg
+}
+
 func handleScan(args []string) {
 	fs := flag.NewFlagSet("scan", flag.ExitOnError)
 	jsonMode := fs.Bool("json", false, "输出 JSON 格式")
@@ -121,7 +135,7 @@ func handleScan(args []string) {
 
 	_ = fs.Parse(args)
 
-	cfg := config.DefaultConfig()
+	cfg := loadConfig()
 	cfg.SafeOnly = *safeOnly
 	// 快速清理只扫描系统缓存，不遍历主目录寻找工作区
 	if !cfg.SafeOnly {
@@ -163,7 +177,7 @@ func handleClean(args []string) {
 
 	_ = fs.Parse(args)
 
-	cfg := config.DefaultConfig()
+	cfg := loadConfig()
 	cfg.SafeOnly = *safeOnly
 	// 快速清理只扫描系统缓存，不遍历主目录寻找工作区
 	if !cfg.SafeOnly {
@@ -309,6 +323,74 @@ func handleAnalyze(args []string) {
 		fmt.Printf("%10s %5.1f%%  %-20s %s\n", model.FormatBytes(e.SizeBytes), pct, bar, name)
 	}
 	fmt.Println()
+}
+
+func handleRules(args []string) {
+	if len(args) > 0 && args[0] == "check" {
+		os.Exit(checkRuleFiles(args[1:]))
+	}
+
+	set, err := rules.Load()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", i18n.T("Failed to load built-in rules", "内置规则加载失败"), err)
+		os.Exit(1)
+	}
+	fmt.Printf("\n📜 %s: %s\n", i18n.T("User rules directory", "用户规则目录"), rules.UserRulesDir())
+	fmt.Println(strings.Repeat("─", 65))
+	for _, group := range []string{rules.GroupAppCaches, rules.GroupPackageCaches} {
+		fmt.Printf("\n[%s]\n", group)
+		for _, r := range set.ForGroup(group) {
+			source := "builtin"
+			if !strings.HasPrefix(r.Source, "builtin/") {
+				source = "user"
+			}
+			fmt.Printf("  %-28s %-11s %-7s %s\n", r.ID, r.Risk, source, r.Title.String())
+		}
+	}
+	if len(set.Warnings) > 0 {
+		fmt.Printf("\n⚠️  %s\n", i18n.T("Skipped user rules:", "已跳过的用户规则："))
+		for _, w := range set.Warnings {
+			fmt.Println("  - " + w)
+		}
+	}
+	fmt.Println()
+}
+
+// checkRuleFiles 校验规则文件（供贡献者与 CI 使用），返回进程退出码
+func checkRuleFiles(paths []string) int {
+	if len(paths) == 0 {
+		fmt.Fprintln(os.Stderr, i18n.T("Usage: devlemon rules check <file.yaml>...", "用法: devlemon rules check <规则文件.yaml>..."))
+		return 2
+	}
+	failed := false
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
+		if err == nil {
+			var rs []rules.Rule
+			if rs, err = rules.ParseFile(data, path); err == nil {
+				var errs []string
+				for _, r := range rs {
+					if !r.IsEnabled() {
+						continue
+					}
+					if verr := r.Validate(); verr != nil {
+						errs = append(errs, verr.Error())
+					}
+				}
+				if len(errs) == 0 {
+					fmt.Printf("✅ %s (%d %s)\n", path, len(rs), i18n.T("rules", "条规则"))
+					continue
+				}
+				err = fmt.Errorf("%s", strings.Join(errs, "\n   "))
+			}
+		}
+		failed = true
+		fmt.Printf("❌ %s\n   %v\n", path, err)
+	}
+	if failed {
+		return 1
+	}
+	return 0
 }
 
 func sumItems(items []*model.Item) int64 {

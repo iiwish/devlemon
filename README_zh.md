@@ -8,7 +8,7 @@
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square" alt="License"></a>
     <a href="https://golang.org"><img src="https://img.shields.io/badge/Go-1.24+-00ADD8.svg?style=flat-square&logo=go" alt="Go Version"></a>
     <a href="https://apple.com/macos"><img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey.svg?style=flat-square&logo=apple" alt="Platform"></a>
-    <a href="https://github.com/iiwish/devlemon/releases"><img src="https://img.shields.io/badge/release-v0.2.15-emerald.svg?style=flat-square" alt="Release"></a>
+    <a href="https://github.com/iiwish/devlemon/releases"><img src="https://img.shields.io/badge/release-v0.2.16-emerald.svg?style=flat-square" alt="Release"></a>
     <a href="#readme"><img src="https://img.shields.io/badge/alias-dl-yellow.svg?style=flat-square" alt="Alias"></a>
     <a href="#readme"><img src="https://img.shields.io/badge/size-%3C%204MB-orange.svg?style=flat-square" alt="Binary Size"></a>
   </p>
@@ -239,6 +239,21 @@ target_dir_names:
 # 目录探测最大递归深度
 max_depth: 3
 ```
+
+### 自定义清理规则
+
+缓存类清理项由 YAML 规则描述。在 `~/.config/devlemon/rules.d/` 下新建 `.yaml` 文件即可添加自己的缓存目录，或禁用、覆盖内置规则：
+
+```yaml
+group: package_caches
+rules:
+  - id: my_tool_cache
+    title: {en: "My Tool Cache", zh: "My Tool 下载缓存"}
+    paths: ["~/.my-tool/cache"]
+    risk: rebuildable
+```
+
+运行 `dl rules` 查看当前生效的规则，`dl rules check <文件>` 校验规则文件。完整格式与路径安全限制见 [docs/RULES.md](docs/RULES.md)。欢迎通过 PR 为更多工具贡献内置规则，只需修改 YAML。
 
 ---
 
