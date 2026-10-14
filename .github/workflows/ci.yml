@@ -28,5 +28,9 @@ jobs:
       - name: Build CLI
         run: go build -v -o devlemon ./cmd/devlemon
 
+      # 逐个文件校验内置清理规则，出错时直接指出文件、规则 ID 与原因
+      - name: Validate cleanup rules
+        run: ./devlemon rules check internal/rules/builtin/*.yaml
+
       - name: Test
         run: go test -v ./...
