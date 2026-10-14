@@ -314,20 +314,15 @@ func electronCacheTargets(home string) []appCacheTarget {
 
 // newCacheItem 将一个或多个目录聚合为一个清理项，体积不足 minSize 时返回 nil
 func newCacheItem(id, title, desc string, paths []string, minSize int64, risk model.RiskLevel) *model.Item {
+	return newSizedItem(id, title, desc, paths, minSize, risk, logicalSize)
+}
+
+// newSizedItem 同 newCacheItem，但由 size 决定统计口径（如稀疏文件用 allocatedSize）
+func newSizedItem(id, title, desc string, paths []string, minSize int64, risk model.RiskLevel, size func(string) int64) *model.Item {
 	var total int64
 	var valid []string
 	for _, p := range paths {
-		info, err := os.Lstat(p)
-		if err != nil {
-			continue
-		}
-		var sz int64
-		if info.IsDir() {
-			sz = FastDirSize(p)
-		} else if info.Mode().IsRegular() {
-			sz = info.Size()
-		}
-		if sz > 0 {
+		if sz := size(p); sz > 0 {
 			total += sz
 			valid = append(valid, p)
 		}

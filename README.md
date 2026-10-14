@@ -8,7 +8,7 @@
     <a href="https://github.com/iiwish/devlemon/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square" alt="License"></a>
     <a href="https://golang.org"><img src="https://img.shields.io/badge/Go-1.24+-00ADD8.svg?style=flat-square&logo=go" alt="Go Version"></a>
     <a href="https://apple.com/macos"><img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey.svg?style=flat-square&logo=apple" alt="Platform"></a>
-    <a href="https://github.com/iiwish/devlemon/releases"><img src="https://img.shields.io/badge/release-v0.2.16-emerald.svg?style=flat-square" alt="Release"></a>
+    <a href="https://github.com/iiwish/devlemon/releases"><img src="https://img.shields.io/badge/release-v0.2.17-emerald.svg?style=flat-square" alt="Release"></a>
     <a href="#readme"><img src="https://img.shields.io/badge/alias-dl-yellow.svg?style=flat-square" alt="Alias"></a>
     <a href="#readme"><img src="https://img.shields.io/badge/size-%3C%204MB-orange.svg?style=flat-square" alt="Binary Size"></a>
   </p>
@@ -83,7 +83,7 @@ Modern developers and AI workflows churn through gigabytes of disk space daily:
 * **Docker & OrbStack**: Hidden BuildKit cache layers and orphaned volumes eat **50GB–100GB+**.
 * **Modern AI Workflows**: Agents (Cursor, Codex, Claude Code, Ollama, UV) quietly leave massive worktrees, runtime browser dumps, and model caches.
 * **Build Targets**: Rust `target/`, Swift `.build/`, Next.js `.next/`, and `node_modules` silently multiply across dozens of forgotten projects.
-* **iOS Simulators**: Simulator sandboxes expand into tens of gigabytes.
+* **iOS / Android Emulators**: Device data and Quick Boot snapshots grow into tens of gigabytes; running simulators and emulators are automatically shielded.
 * **Old Toolchains & SDKs**: Rust toolchains pinned by individual projects, Android system images no emulator uses, older NDK / build-tools / Gradle wrappers, and stores left behind by older pnpm versions — each often gigabytes.
 * **Package Manager Caches**: npm, pnpm, Yarn, Bun, Cargo, Go, Gradle, Maven, pip, uv, Composer, Deno, plus Hugging Face / PyTorch / Whisper model caches.
 

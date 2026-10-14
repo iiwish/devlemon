@@ -252,28 +252,13 @@ func androidSDKItems(home string) []*model.Item {
 
 // androidUsedSystemImages 读取全部 AVD 的 config.ini，收集其引用的系统镜像（如 system-images/android-36/google_apis/arm64-v8a）
 func androidUsedSystemImages(home string) map[string]bool {
-	avdHome := os.Getenv("ANDROID_AVD_HOME")
-	if avdHome == "" {
-		avdHome = filepath.Join(home, ".android", "avd")
-	}
 	used := map[string]bool{}
-	entries, _ := os.ReadDir(avdHome)
-	for _, e := range entries {
-		if !strings.HasSuffix(e.Name(), ".avd") {
-			continue
-		}
-		f, err := os.Open(filepath.Join(avdHome, e.Name(), "config.ini"))
-		if err != nil {
-			continue
-		}
-		sc := bufio.NewScanner(f)
-		for sc.Scan() {
-			k, v, ok := strings.Cut(sc.Text(), "=")
-			if ok && strings.HasPrefix(strings.TrimSpace(k), "image.sysdir.") {
-				used[strings.Trim(filepath.ToSlash(strings.TrimSpace(v)), "/")] = true
+	for _, avd := range listAVDs(home) {
+		for k, v := range readINI(filepath.Join(avd.dir, "config.ini")) {
+			if strings.HasPrefix(k, "image.sysdir.") {
+				used[strings.Trim(filepath.ToSlash(v), "/")] = true
 			}
 		}
-		f.Close()
 	}
 	return used
 }

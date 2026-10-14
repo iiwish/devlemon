@@ -1,6 +1,7 @@
 package probe
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -193,4 +194,32 @@ func outerAppBundle(exe string) string {
 		return exe[:i+len(".app")]
 	}
 	return ""
+}
+
+// parseProcArgs2 解析 macOS kern.procargs2 的返回：int32 argc | 可执行文件路径\0 | 若干 \0 填充 | argv[0..argc-1]（各以 \0 结尾）| 环境变量…
+func parseProcArgs2(buf []byte) (exe string, args []string) {
+	if len(buf) < 4 {
+		return "", nil
+	}
+	argc := int(int32(uint32(buf[0]) | uint32(buf[1])<<8 | uint32(buf[2])<<16 | uint32(buf[3])<<24))
+	rest := buf[4:]
+	n := bytes.IndexByte(rest, 0)
+	if n < 0 {
+		return string(rest), nil
+	}
+	exe = string(rest[:n])
+	rest = rest[n:]
+	for len(rest) > 0 && rest[0] == 0 {
+		rest = rest[1:]
+	}
+	for i := 0; i < argc && len(rest) > 0; i++ {
+		n := bytes.IndexByte(rest, 0)
+		if n < 0 {
+			args = append(args, string(rest))
+			break
+		}
+		args = append(args, string(rest[:n]))
+		rest = rest[n+1:]
+	}
+	return exe, args
 }

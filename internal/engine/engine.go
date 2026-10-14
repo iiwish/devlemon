@@ -25,6 +25,7 @@ func NewEngine(cfg *config.Config) *Engine {
 			probe.NewAppCacheProbe(),
 			probe.NewDockerProbe(),
 			probe.NewSimulatorProbe(),
+			probe.NewAndroidEmulatorProbe(),
 			probe.NewCacheProbe(),
 			probe.NewToolchainProbe(),
 			probe.NewWorkspaceProbe(),

@@ -50,3 +50,29 @@ func runningAppBundles() (map[string]bool, bool) {
 	}
 	return bundles, readable
 }
+
+// processArgs 返回当前用户进程中可执行文件路径满足 match 的进程的完整参数（argv）。
+// 一个进程都读不到时返回 ok=false，调用方据此保守处理
+func processArgs(match func(exe string) bool) ([][]string, bool) {
+	procs, err := unix.SysctlKinfoProcSlice("kern.proc.all")
+	if err != nil {
+		return nil, false
+	}
+	uid := uint32(unix.Getuid())
+	var out [][]string
+	readable := false
+	for i := range procs {
+		if procs[i].Eproc.Ucred.Uid != uid {
+			continue
+		}
+		buf, err := unix.SysctlRaw("kern.procargs2", int(procs[i].Proc.P_pid))
+		if err != nil {
+			continue
+		}
+		readable = true
+		if exe, args := parseProcArgs2(buf); exe != "" && match(exe) {
+			out = append(out, args)
+		}
+	}
+	return out, readable
+}
